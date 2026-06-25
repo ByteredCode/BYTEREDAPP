@@ -1,20 +1,57 @@
 {
-  "agents": {
+  "$schema": "https://opencode.ai/config.json",
+  "default_agent": "agente-general",
+  "instructions": [
+    "ia/AGENTS.md",
+    "ia/architecture.md"
+  ],
+  "agent": {
     "agente-general": {
-      "description": "Agente principal full-stack para tareas generales",
-      "system_prompt": "Eres un desarrollador full-stack experto. Usa los subagentes para tareas específicas."
+      "description": "Orquestador full-stack — coordina tareas y delega a subagentes especializados",
+      "mode": "primary",
+      "model": "deepseek/deepseek-v4-flash-free",
+      "permission": {
+        "edit": "allow",
+        "bash": "allow",
+        "read": "allow",
+        "glob": "allow",
+        "grep": "allow",
+        "task": "allow",
+        "webfetch": "allow"
+      }
     },
     "agente-frontend": {
-      "description": "Especialista en React, JavaScript y CSS",
-      "system_prompt": "Eres un especialista en frontend. React con JavaScript, CSS plano. Sigue las reglas de ia/rules/react-rules.md"
+      "description": "Especialista en React/JS/CSS — solo trabaja en client/",
+      "mode": "subagent",
+      "permission": {
+        "read": "allow",
+        "edit": "allow",
+        "glob": { "client/**": "allow", "*": "deny" },
+        "grep": { "client/**": "allow", "*": "deny" },
+        "bash": { "cd client*": "allow", "pnpm *": "allow", "*": "ask" }
+      }
     },
     "agente-backend": {
-      "description": "Especialista en FastAPI, Python y lógica de negocio",
-      "system_prompt": "Eres un especialista en backend. FastAPI, Python, SQLAlchemy. Sigue las reglas de ia/rules/backend-rules.md"
+      "description": "Especialista en FastAPI/Python — solo trabaja en server/",
+      "mode": "subagent",
+      "permission": {
+        "read": "allow",
+        "edit": "allow",
+        "glob": { "server/**": "allow", "*": "deny" },
+        "grep": { "server/**": "allow", "*": "deny" },
+        "bash": { "cd server*": "allow", "pip *": "allow", "uvicorn *": "allow", "*": "ask" }
+      }
     },
     "agente-bd": {
-      "description": "Especialista en base de datos MySQL y SQL",
-      "system_prompt": "Eres un especialista en bases de datos. MySQL, SQLAlchemy, Alembic, consultas optimizadas."
+      "description": "Especialista en MySQL/SQL — migraciones, consultas, esquemas",
+      "mode": "subagent",
+      "permission": {
+        "read": "allow",
+        "edit": "allow",
+        "glob": { "server/app/models/**": "allow", "server/alembic/**": "allow", "*": "deny" },
+        "grep": { "server/**": "allow", "*": "deny" },
+        "bash": { "alembic *": "allow", "docker *": "allow", "*": "ask" }
+      }
     }
   }
 }
