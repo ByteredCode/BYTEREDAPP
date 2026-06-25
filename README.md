@@ -235,3 +235,6 @@ uvicorn app.main:app --reload
 - Frontend: `http://localhost:5173`
 - API Docs (Swagger): `http://localhost:8000/docs`
 - Base de datos: MySQL en `localhost:3306`
+
+
+Inicio de la rama develop
