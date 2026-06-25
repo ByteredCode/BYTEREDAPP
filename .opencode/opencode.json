@@ -52,6 +52,20 @@
         "grep": { "server/**": "allow", "*": "deny" },
         "bash": { "alembic *": "allow", "docker *": "allow", "*": "ask" }
       }
+    },
+    "agente-profesor": {
+      "description": "Profesor universitario de programación. Invócalo cuando quieras aprender sobre cualquier parte del código. Solo explica, no modifica nada ni ejecuta comandos.",
+      "mode": "subagent",
+      "permission": {
+        "read": "allow",
+        "edit": "deny",
+        "bash": "deny",
+        "glob": "allow",
+        "grep": "allow",
+        "webfetch": "deny",
+        "websearch": "deny",
+        "task": "deny"
+      }
     }
   }
 }
