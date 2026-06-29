@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import api from "../api/axios"
 
 export default function Register() {
@@ -26,41 +26,53 @@ export default function Register() {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <h1>Registrarse</h1>
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      <input
-        type="text"
-        placeholder="Nombre"
-        value={nombre}
-        onChange={(e) => setNombre(e.target.value)}
-        required
-      />
-      <input
-        type="email"
-        placeholder="Correo"
-        value={correo}
-        onChange={(e) => setCorreo(e.target.value)}
-        required
-      />
-      <input
-        type="password"
-        placeholder="Contrasena"
-        value={contrasena}
-        onChange={(e) => setContrasena(e.target.value)}
-        required
-      />
-      <input
-        type="number"
-        placeholder="Codigo de empresa"
-        value={codigoEmpresa}
-        onChange={(e) => setCodigoEmpresa(e.target.value)}
-        required
-      />
-      <button type="submit">Registrarse</button>
-      <p>
-        <a href="/login">Ya tengo cuenta</a>
-      </p>
-    </form>
+    <div className="auth-page">
+      <div className="auth-card">
+        <h1>Registrarse</h1>
+        {error && <p className="error">{error}</p>}
+        <form onSubmit={handleSubmit}>
+          <div className="campo">
+            <input
+              type="text"
+              placeholder="Nombre completo"
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              required
+            />
+          </div>
+          <div className="campo">
+            <input
+              type="email"
+              placeholder="Correo electrónico"
+              value={correo}
+              onChange={(e) => setCorreo(e.target.value)}
+              required
+            />
+          </div>
+          <div className="campo">
+            <input
+              type="password"
+              placeholder="Contraseña"
+              value={contrasena}
+              onChange={(e) => setContrasena(e.target.value)}
+              required
+            />
+          </div>
+          <div className="campo">
+            <input
+              type="number"
+              placeholder="Código de empresa"
+              value={codigoEmpresa}
+              onChange={(e) => setCodigoEmpresa(e.target.value)}
+              required
+            />
+          </div>
+          <button type="submit" className="btn btn-primary">Registrarse</button>
+        </form>
+        <div className="auth-link">
+          ¿Ya tienes cuenta? <Link to="/login">Iniciar sesión</Link>
+        </div>
+      </div>
+    </div>
   )
 }

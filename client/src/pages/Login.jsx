@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 
 export default function Login() {
@@ -20,27 +20,35 @@ export default function Login() {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <h1>Iniciar sesion</h1>
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      <input
-        type="email"
-        placeholder="Correo"
-        value={correo}
-        onChange={(e) => setCorreo(e.target.value)}
-        required
-      />
-      <input
-        type="password"
-        placeholder="Contrasena"
-        value={contrasena}
-        onChange={(e) => setContrasena(e.target.value)}
-        required
-      />
-      <button type="submit">Entrar</button>
-      <p>
-        <a href="/register">Registrarse</a>
-      </p>
-    </form>
+    <div className="auth-page">
+      <div className="auth-card">
+        <h1>Iniciar sesión</h1>
+        {error && <p className="error">{error}</p>}
+        <form onSubmit={handleSubmit}>
+          <div className="campo">
+            <input
+              type="email"
+              placeholder="Correo electrónico"
+              value={correo}
+              onChange={(e) => setCorreo(e.target.value)}
+              required
+            />
+          </div>
+          <div className="campo">
+            <input
+              type="password"
+              placeholder="Contraseña"
+              value={contrasena}
+              onChange={(e) => setContrasena(e.target.value)}
+              required
+            />
+          </div>
+          <button type="submit" className="btn btn-primary">Entrar</button>
+        </form>
+        <div className="auth-link">
+          ¿No tienes cuenta? <Link to="/register">Registrarse</Link>
+        </div>
+      </div>
+    </div>
   )
 }

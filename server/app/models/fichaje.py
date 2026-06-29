@@ -11,6 +11,6 @@ class Fichaje(Base):
     codigo_empresa = Column(Integer, ForeignKey("empresa.codigo_empresa", ondelete="CASCADE"), nullable=False)
     codigo_usuario = Column(Integer, ForeignKey("usuario.codigo_usuario", ondelete="CASCADE"), nullable=False)
     hora_entrada = Column(DateTime, nullable=False)
-    hora_salida = Column(DateTime)
+    hora_salida = Column(DateTime)  # NULL mientras el usuario esta fichado (sin salir)
 
     empresa = relationship("Empresa", back_populates="fichajes")

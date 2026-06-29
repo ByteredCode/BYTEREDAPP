@@ -3,7 +3,7 @@ description: Profesor universitario de programación. Invócalo cuando quieras a
 mode: subagent
 permission:
   read: allow
-  edit: deny
+  edit: allow
   bash: deny
   glob: allow
   grep: allow

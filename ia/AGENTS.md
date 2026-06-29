@@ -20,6 +20,9 @@ Los agentes están definidos en `.opencode/opencode.json` y sus instrucciones de
 | **agente-frontend** | `.opencode/agents/agente-frontend.md` | Especialista React/JS/CSS |
 | **agente-backend** | `.opencode/agents/agente-backend.md` | Especialista FastAPI/Python |
 | **agente-bd** | `.opencode/agents/agente-bd.md` | Especialista MySQL/SQL |
+| **agente-profesor** | `.opencode/agents/agente-profesor.md` | Profesor universitario (solo explica) |
+| **agente-comentador** | `.opencode/agents/agente-comentador.md` | Comenta código en español |
+| **agente-ciberseguridad** | `.opencode/agents/agente-ciberseguridad.md` | Auditoría OWASP y contra medidas |
 
 ## Flujo de trabajo con OpenCode
 
@@ -37,5 +40,6 @@ Los agentes están definidos en `.opencode/opencode.json` y sus instrucciones de
 | `ia/rules/react-rules.md` | Reglas específicas frontend |
 | `ia/rules/backend-rules.md` | Reglas específicas backend |
 | `ia/rules/bd-rules.md` | Reglas específicas base de datos |
+| `ia/rules/security-rules.md` | Reglas OWASP de ciberseguridad |
 | `ia/context/database-schema.md` | Esquema actualizado de la BD |
 | `ia/context/api-endpoints.md` | Endpoints actualizados de la API |

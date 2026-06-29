@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, Enum as SAEnum, ForeignKey, Integer, Text
+from sqlalchemy import Column, DateTime, Enum as SAEnum, ForeignKey, Integer, String, Text
 from sqlalchemy import func
 from sqlalchemy.orm import relationship
 
@@ -9,7 +9,11 @@ class Ticket(Base):
     __tablename__ = "tickets"
 
     id_reporte = Column(Integer, primary_key=True, autoincrement=True)
-    codigo_usuario = Column(Integer, ForeignKey("usuario.codigo_usuario", ondelete="CASCADE"), nullable=False)
+    # codigo_usuario nullable permite tickets de usuarios anonimos (sin auth)
+    codigo_usuario = Column(Integer, ForeignKey("usuario.codigo_usuario", ondelete="SET NULL"), nullable=True)
+    nombre_contacto = Column(String(150))  # Nombre del remitente si es anonimo
+    correo_contacto = Column(String(150))  # Email de contacto si es anonimo
+    asunto = Column(String(200))
     nivel_importancia = Column(
         SAEnum("Baja", "Media", "Alta", "Critica", name="importancia_enum"),
         nullable=False,
@@ -20,6 +24,7 @@ class Ticket(Base):
         SAEnum("Pendiente", "Leido", "Respondido", "Cerrado", name="estado_ticket_enum"),
         default="Pendiente",
     )
+    # server_default asigna la fecha desde el motor BD, no desde Python
     fecha_reporte = Column(DateTime, server_default=func.current_timestamp())
 
     empresa = relationship("Empresa", back_populates="tickets")

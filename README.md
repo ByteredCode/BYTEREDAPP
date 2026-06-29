@@ -236,5 +236,37 @@ uvicorn app.main:app --reload
 - API Docs (Swagger): `http://localhost:8000/docs`
 - Base de datos: MySQL en `localhost:3306`
 
+## Docker (producción)
 
-Inicio de la rama develop
+```bash
+# Construir y arrancar todo (BD + API + Frontend nginx)
+docker compose up --build -d
+
+# Servicios:
+# - Frontend: http://localhost
+# - API:      http://localhost:8000
+# - Docs:     http://localhost:8000/docs
+# - BD:       localhost:3306
+
+# Ver logs
+docker compose logs -f
+
+# Detener
+docker compose down
+```
+
+## CI/CD
+
+El repositorio incluye un pipeline de GitHub Actions en `.github/workflows/ci.yml` que ejecuta:
+
+| Job | Descripción |
+|---|---|
+| **backend** | Tests con pytest + cobertura ≥80% sobre MySQL real |
+| **frontend** | Lint + tests con vitest + cobertura ≥80% + build |
+| **docker** | Build de imágenes (server + client) tras tests exitosos |
+
+Para activarlo, el repositorio debe estar en GitHub. Las credenciales de base de datos se configuran vía `secrets.MYSQL_*` en el repositorio.
+
+## Arquitectura multi-tenant
+
+Ver `ia/architecture.md` para detalles completos del modelo de datos, flujo de autorización y diseño de módulos.

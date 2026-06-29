@@ -7,6 +7,7 @@ from app.core.database import get_db
 from app.core.security import decodificar_token
 from app.models.usuario import Usuario
 
+# HTTPBearer extrae el token del header "Authorization: Bearer <token>"
 seguridad = HTTPBearer()
 
 
@@ -14,11 +15,13 @@ async def get_usuario_actual(
     credenciales: HTTPAuthorizationCredentials = Depends(seguridad),
     db: AsyncSession = Depends(get_db),
 ) -> Usuario:
+    # Decodifica y verifica que sea un access token (no refresh)
     payload = decodificar_token(credenciales.credentials)
     if payload is None or payload.get("tipo") != "access":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Token invalido"
         )
+    # "sub" (subject) es el claim estandar JWT que contiene el ID del usuario
     sub = payload.get("sub")
     if sub is None:
         raise HTTPException(
@@ -35,5 +38,7 @@ async def get_usuario_actual(
     return usuario
 
 
+# Dependencia que extrae el company_id del usuario autenticado
+# Se usa en endpoints para filtrar datos por empresa (multi-tenant)
 def get_tenant_filter(usuario: Usuario = Depends(get_usuario_actual)) -> int:
     return usuario.codigo_empresa

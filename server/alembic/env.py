@@ -5,6 +5,7 @@ from alembic import context
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.core.database import Base
+# Importar modelos para que Base.metadata los conozca al generar migraciones
 from app.models import Empresa, EmpresaServicio, Usuario, Tarea, Documento, DocumentoPermiso, Ticket, Fichaje
 
 config = context.config
@@ -16,6 +17,7 @@ target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
+    # Modo offline: genera SQL sin conectar a la BD
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
@@ -34,6 +36,7 @@ def do_run_migrations(connection):
 
 
 async def run_async_migrations() -> None:
+    # Conexion asincrona para ejecutar migraciones sobre MySQL
     connectable = create_async_engine(config.get_main_option("sqlalchemy.url"))
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
@@ -41,6 +44,7 @@ async def run_async_migrations() -> None:
 
 
 def run_migrations_online() -> None:
+    # Alembic no soporta async nativamente, lo envolvemos con asyncio.run()
     asyncio.run(run_async_migrations())
 
 

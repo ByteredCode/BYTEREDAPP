@@ -1,0 +1,183 @@
+import pytest
+from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.security import hash_contrasena
+from app.models.empresa import Empresa
+from app.models.empresa_servicio import EmpresaServicio
+from app.models.usuario import Usuario
+
+
+class TestAdminEmpresas:
+
+    async def test_listar_empresas_como_superadmin(
+        self, client: AsyncClient, headers_superadmin
+    ):
+        response = await client.get("/admin/empresas", headers=headers_superadmin)
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list)
+
+    async def test_listar_empresas_como_admin_empresa(
+        self, client: AsyncClient, headers_admin
+    ):
+        response = await client.get("/admin/empresas", headers=headers_admin)
+        assert response.status_code == 403
+
+    async def test_crear_empresa(
+        self, client: AsyncClient, headers_superadmin
+    ):
+        payload = {"nombre": "Nueva Empresa", "web": "https://nueva.com"}
+        response = await client.post("/admin/empresas", json=payload, headers=headers_superadmin)
+        assert response.status_code == 201
+        data = response.json()
+        assert data["nombre"] == "Nueva Empresa"
+        assert data["web"] == "https://nueva.com"
+
+    async def test_obtener_empresa(
+        self, client: AsyncClient, headers_superadmin, test_empresa
+    ):
+        response = await client.get(
+            f"/admin/empresas/{test_empresa.codigo_empresa}",
+            headers=headers_superadmin,
+        )
+        assert response.status_code == 200
+        assert response.json()["nombre"] == "Empresa Test"
+
+    async def test_actualizar_empresa(
+        self, client: AsyncClient, headers_superadmin, test_empresa
+    ):
+        payload = {"nombre": "Empresa Actualizada"}
+        response = await client.put(
+            f"/admin/empresas/{test_empresa.codigo_empresa}",
+            json=payload,
+            headers=headers_superadmin,
+        )
+        assert response.status_code == 200
+        assert response.json()["nombre"] == "Empresa Actualizada"
+
+
+class TestAdminUsuarios:
+
+    async def test_listar_usuarios_superadmin(
+        self,
+        client: AsyncClient,
+        headers_superadmin,
+        test_usuario,
+        test_admin,
+        test_superadmin,
+    ):
+        response = await client.get("/admin/usuarios", headers=headers_superadmin)
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list)
+        assert len(data) >= 3
+
+    async def test_listar_usuarios_admin_empresa(
+        self,
+        client: AsyncClient,
+        headers_admin,
+        test_session: AsyncSession,
+        test_admin,
+        test_usuario,
+    ):
+        otra_empresa = Empresa(nombre="Otra Empresa")
+        test_session.add(otra_empresa)
+        await test_session.flush()
+
+        otro_usuario = Usuario(
+            correo="otro@test.com",
+            contrasena=hash_contrasena("Otro1234"),
+            nombre="Otro Usuario",
+            rol="usuario",
+            codigo_empresa=otra_empresa.codigo_empresa,
+        )
+        test_session.add(otro_usuario)
+        await test_session.flush()
+
+        response = await client.get("/admin/usuarios", headers=headers_admin)
+        assert response.status_code == 200
+        data = response.json()
+        codigos = [u["codigo_usuario"] for u in data]
+        assert test_usuario.codigo_usuario in codigos
+        assert test_admin.codigo_usuario in codigos
+        assert otro_usuario.codigo_usuario not in codigos
+        for user in data:
+            assert user["codigo_empresa"] == test_admin.codigo_empresa
+
+    async def test_crear_usuario_admin(
+        self,
+        client: AsyncClient,
+        headers_superadmin,
+        test_empresa,
+    ):
+        payload = {
+            "correo": "nuevo@test.com",
+            "contrasena": "Password1",
+            "nombre": "Nuevo Usuario",
+            "codigo_empresa": test_empresa.codigo_empresa,
+            "rol": "usuario",
+        }
+        response = await client.post("/admin/usuarios", json=payload, headers=headers_superadmin)
+        assert response.status_code == 201
+        data = response.json()
+        assert data["correo"] == "nuevo@test.com"
+        assert data["nombre"] == "Nuevo Usuario"
+        assert data["rol"] == "usuario"
+
+
+class TestAdminServicios:
+
+    async def test_listar_servicios(
+        self,
+        client: AsyncClient,
+        headers_superadmin,
+        test_session: AsyncSession,
+        test_empresa,
+    ):
+        for servicio in ["scrum", "tickets"]:
+            es = EmpresaServicio(
+                codigo_empresa=test_empresa.codigo_empresa,
+                servicio=servicio,
+                activo=True,
+            )
+            test_session.add(es)
+        await test_session.flush()
+
+        response = await client.get(
+            f"/admin/empresas/{test_empresa.codigo_empresa}/servicios",
+            headers=headers_superadmin,
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list)
+        assert len(data) == 2
+        servicios = {s["servicio"] for s in data}
+        assert "scrum" in servicios
+        assert "tickets" in servicios
+
+    async def test_toggle_servicio(
+        self,
+        client: AsyncClient,
+        headers_superadmin,
+        test_session: AsyncSession,
+        test_empresa,
+    ):
+        es = EmpresaServicio(
+            codigo_empresa=test_empresa.codigo_empresa,
+            servicio="scrum",
+            activo=True,
+        )
+        test_session.add(es)
+        await test_session.flush()
+
+        payload = {"servicio": "scrum", "activo": False}
+        response = await client.put(
+            f"/admin/empresas/{test_empresa.codigo_empresa}/servicios",
+            json=payload,
+            headers=headers_superadmin,
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["servicio"] == "scrum"
+        assert data["activo"] is False

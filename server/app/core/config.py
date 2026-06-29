@@ -10,9 +10,13 @@ class Config(BaseSettings):
     MYSQL_PASSWORD: str = "root"
     MYSQL_DATABASE: str = "byteredapp"
 
+    # Seguridad JWT
     JWT_SECRET: str = "changeme"
-    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
+    # CORS
+    CORS_ORIGINS: str = "http://localhost:5173"
 
     SMTP_HOST: str = ""
     SMTP_PORT: Optional[int] = None
@@ -30,4 +34,5 @@ class Config(BaseSettings):
     model_config = {"env_file": "../.env", "case_sensitive": True, "extra": "ignore"}
 
 
+# Instancia unica (singleton) importada en toda la aplicacion
 config = Config()

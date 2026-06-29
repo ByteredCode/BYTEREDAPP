@@ -1,9 +1,9 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 
 class RegisterRequest(BaseModel):
     correo: EmailStr
-    contrasena: str
+    contrasena: str = Field(min_length=8)
     nombre: str
     codigo_empresa: int
 
