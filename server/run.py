@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -8,17 +9,24 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api.v1.admin import router as admin_router
 from app.api.v1.auth import limiter, router as auth_router
+from app.api.v1.empresa import router as empresa_router
 from app.api.v1.scrum import router as scrum_router
 from app.api.v1.tickets import router as tickets_router
 from app.api.v1.documentos import router as documentos_router
 from app.api.v1.fichajes import router as fichajes_router
 from app.api.v1.redireccion import router as redireccion_router
+from app.core.blocklist import cerrar as cerrar_blocklist
 from app.core.config import config
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    logger.info(f"Iniciando BYTEREDAPP API — entorno: {'produccion' if config.JWT_SECRET != 'changeme' else 'desarrollo'}")
+    logger.info(f"Documentacion {'habilitada' if config.docs_url else 'deshabilitada'} (CORS: {config.CORS_ORIGINS})")
     yield
+    await cerrar_blocklist()
 
 
 cors_origins = [o.strip() for o in config.CORS_ORIGINS.split(",")]
@@ -57,6 +65,7 @@ app.add_middleware(BaseHTTPMiddleware, dispatch=seguridad_headers_middleware)
 
 app.include_router(auth_router)
 app.include_router(admin_router)
+app.include_router(empresa_router)
 app.include_router(scrum_router)
 app.include_router(tickets_router)
 app.include_router(documentos_router)

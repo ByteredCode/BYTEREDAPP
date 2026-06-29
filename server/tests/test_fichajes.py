@@ -78,3 +78,23 @@ class TestFichajes:
         data = response.json()
         for fichaje in data:
             assert fichaje["codigo_usuario"] != otro.codigo_usuario
+
+    async def test_resumen(self, client: AsyncClient, headers_usuario):
+        await client.post("/fichajes/entrada", headers=headers_usuario)
+        await client.post("/fichajes/salida", headers=headers_usuario)
+        response = await client.get("/fichajes/resumen", headers=headers_usuario)
+        assert response.status_code == 200
+        data = response.json()
+        assert "horas_hoy" in data
+        assert "horas_semana" in data
+        assert "horas_mes" in data
+        assert "total_fichajes" in data
+        assert data["total_fichajes"] >= 1
+
+    async def test_exportar_csv(self, client: AsyncClient, headers_usuario):
+        await client.post("/fichajes/entrada", headers=headers_usuario)
+        await client.post("/fichajes/salida", headers=headers_usuario)
+        response = await client.get("/fichajes/exportar", headers=headers_usuario)
+        assert response.status_code == 200
+        assert "text/csv" in response.headers["content-type"]
+        assert "id,usuario,empresa,entrada,salida,duracion_min" in response.text

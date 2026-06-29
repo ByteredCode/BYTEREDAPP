@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from "react"
 import api from "../../api/axios"
+import { useToast } from "../../context/ToastContext"
 
 const ESTADOS = ["Planificado", "Activo", "Completado"]
 
 // CRUD de sprints con modal de formulario
 export default function Sprints() {
+  const { showToast } = useToast()
   const [sprints, setSprints] = useState([])
   const [mostrarForm, setMostrarForm] = useState(false)
   const [editando, setEditando] = useState(null)
@@ -56,7 +58,7 @@ export default function Sprints() {
       setMostrarForm(false)
       fetchSprints()
     } catch (err) {
-      alert("Error al guardar sprint: " + (err.response?.data?.detail || err.message))
+      showToast(err.response?.data?.detail || "Error al guardar sprint")
     }
   }
 
@@ -66,7 +68,7 @@ export default function Sprints() {
       await api.delete(`/scrum/sprints/${id}`)
       fetchSprints()
     } catch (err) {
-      alert("Error al eliminar: " + (err.response?.data?.detail || err.message))
+      showToast(err.response?.data?.detail || "Error al eliminar sprint")
     }
   }
 

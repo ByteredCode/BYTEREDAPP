@@ -1,12 +1,25 @@
+from datetime import datetime, timedelta, timezone
+
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_contrasena
 from app.models.empresa import Empresa
 from app.models.empresa_servicio import EmpresaServicio
+from app.models.fichaje import Fichaje
+from app.models.tarea import Tarea
+from app.models.ticket import Ticket
 from app.models.usuario import Usuario
-from app.schemas.admin import EmpresaCreate, EmpresaUpdate, ServicioToggle, UsuarioCreate, UsuarioUpdate
+from app.schemas.admin import (
+    AdminStatsResponse,
+    ConteoPorClave,
+    EmpresaCreate,
+    EmpresaUpdate,
+    ServicioToggle,
+    UsuarioCreate,
+    UsuarioUpdate,
+)
 
 # Al crear empresa se activan todos los modulos por defecto
 SERVICIOS_POR_DEFECTO = ["scrum", "tickets", "documentacion", "fichaje", "redireccion"]
@@ -171,3 +184,55 @@ async def toggle_servicio(db: AsyncSession, codigo_empresa: int, data: ServicioT
     await db.commit()
     await db.refresh(servicio)
     return servicio
+
+
+async def obtener_stats(db: AsyncSession, codigo_empresa: int | None = None) -> AdminStatsResponse:
+    def filtrar(col):
+        return col if codigo_empresa is None else col == codigo_empresa
+
+    total_empresas = (await db.execute(select(func.count(Empresa.codigo_empresa)))).scalar()
+
+    uq = select(Usuario.rol, func.count().label("total")).group_by(Usuario.rol)
+    if codigo_empresa:
+        uq = uq.where(Usuario.codigo_empresa == codigo_empresa)
+    filas_rol = await db.execute(uq)
+    usuarios_por_rol = [ConteoPorClave(clave=r.rol, total=r.total) for r in filas_rol]
+
+    total_usuarios = sum(c.total for c in usuarios_por_rol)
+
+    tq = select(Ticket.estado, func.count().label("total")).group_by(Ticket.estado)
+    if codigo_empresa:
+        tq = tq.where(Ticket.codigo_empresa == codigo_empresa)
+    filas_ticket = await db.execute(tq)
+    tickets_por_estado = [ConteoPorClave(clave=r.estado, total=r.total) for r in filas_ticket]
+
+    fq = select(func.count(Fichaje.id_fichaje)).where(Fichaje.hora_salida.is_(None))
+    if codigo_empresa:
+        fq = fq.where(Fichaje.codigo_empresa == codigo_empresa)
+    fichajes_abiertos = (await db.execute(fq)).scalar()
+
+    eq = select(func.count(Empresa.codigo_empresa)).where(Empresa.web.is_(None))
+    empresas_sin_web = (await db.execute(eq)).scalar()
+
+    taq = select(Tarea.columna, func.count().label("total")).group_by(Tarea.columna)
+    if codigo_empresa:
+        taq = taq.where(Tarea.codigo_empresa == codigo_empresa)
+    filas_tarea = await db.execute(taq)
+    tareas_por_columna = [ConteoPorClave(clave=r.columna, total=r.total) for r in filas_tarea]
+
+    hace_un_mes = datetime.now(timezone.utc) - timedelta(days=30)
+    ttmq = select(func.count(Ticket.id_reporte)).where(Ticket.fecha_reporte >= hace_un_mes)
+    if codigo_empresa:
+        ttmq = ttmq.where(Ticket.codigo_empresa == codigo_empresa)
+    tickets_ultimo_mes = (await db.execute(ttmq)).scalar()
+
+    return AdminStatsResponse(
+        total_empresas=total_empresas,
+        total_usuarios=total_usuarios,
+        usuarios_por_rol=usuarios_por_rol,
+        tickets_por_estado=tickets_por_estado,
+        fichajes_abiertos=fichajes_abiertos,
+        empresas_sin_web=empresas_sin_web,
+        tareas_por_columna=tareas_por_columna,
+        tickets_ultimo_mes=tickets_ultimo_mes,
+    )

@@ -17,6 +17,7 @@ export default function Layout() {
         <nav className="nav-principal">
           <div className="nav-left">
             <Link to="/dashboard" className="nav-logo">BYTERED</Link>
+            <Link to="/mi-empresa" className="nav-link">Mi Empresa</Link>
             <Link to="/scrum/tablero" className="nav-link">Scrum</Link>
             <Link to="/fichajes" className="nav-link">Fichajes</Link>
             <Link to="/admin/tickets" className="nav-link">Tickets</Link>

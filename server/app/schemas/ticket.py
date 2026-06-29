@@ -15,8 +15,8 @@ class TicketCreate(BaseModel):
 
 
 class TicketUpdateEstado(BaseModel):
-    # Cambio de estado: Pendiente -> Leido -> Respondido -> Cerrado
     estado: str
+    respuesta: Optional[str] = None
 
 
 class TicketResponse(BaseModel):
@@ -30,5 +30,7 @@ class TicketResponse(BaseModel):
     codigo_empresa: int
     estado: str
     fecha_reporte: Optional[datetime] = None
+    respuesta: Optional[str] = None
+    fecha_respuesta: Optional[datetime] = None
 
     model_config = {"from_attributes": True}

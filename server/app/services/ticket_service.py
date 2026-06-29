@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -53,9 +55,14 @@ async def obtener_ticket(db: AsyncSession, id_reporte: int, codigo_empresa: int)
     return ticket
 
 
-async def actualizar_estado_ticket(db: AsyncSession, id_reporte: int, estado: str, codigo_empresa: int) -> Ticket:
+async def actualizar_estado_ticket(
+    db: AsyncSession, id_reporte: int, estado: str, codigo_empresa: int, respuesta: str | None = None
+) -> Ticket:
     ticket = await obtener_ticket(db, id_reporte, codigo_empresa)
     ticket.estado = estado
+    if respuesta:
+        ticket.respuesta = respuesta
+        ticket.fecha_respuesta = datetime.now(timezone.utc)
     await db.commit()
     await db.refresh(ticket)
     return ticket

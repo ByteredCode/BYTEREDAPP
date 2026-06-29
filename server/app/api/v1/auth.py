@@ -6,9 +6,9 @@ from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.blocklist import agregar_a_blocklist
 from app.core.dependencies import get_usuario_actual
 from app.core.security import (
-    agregar_a_blocklist,
     crear_access_token,
     crear_refresh_token,
     decodificar_token,
@@ -47,13 +47,12 @@ async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends
 
 @router.post("/auth/refresh", response_model=TokenResponse)
 async def refresh(refresh_token: str = Body(..., embed=True), db: AsyncSession = Depends(get_db)):
-    payload = decodificar_token(refresh_token)
+    payload = await decodificar_token(refresh_token)
     if payload is None or payload.get("tipo") != "refresh":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token invalido")
-    # Invalidar token anterior (rotacion)
     jti_anterior = payload.get("jti")
     if jti_anterior:
-        agregar_a_blocklist(jti_anterior)
+        await agregar_a_blocklist(jti_anterior)
     access_token = crear_access_token({"sub": str(payload["sub"]), "empresa": payload.get("empresa")})
     nuevo_refresh = crear_refresh_token({"sub": str(payload["sub"])})
     return TokenResponse(access_token=access_token, refresh_token=nuevo_refresh)

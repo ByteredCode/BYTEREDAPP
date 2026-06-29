@@ -10,6 +10,9 @@ export default function AdminLayout() {
       <aside className="admin-sidebar">
         <h2 className="admin-sidebar-titulo">Administracion</h2>
         <nav className="admin-sidebar-nav">
+          <NavLink to="/admin" end className="admin-sidebar-link">
+            Dashboard
+          </NavLink>
           {/* Solo admin_total ve el enlace a Empresas */}
           {usuario?.rol === "admin_total" && (
             <NavLink to="/admin/empresas" className="admin-sidebar-link">

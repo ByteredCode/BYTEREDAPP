@@ -24,7 +24,8 @@ class Ticket(Base):
         SAEnum("Pendiente", "Leido", "Respondido", "Cerrado", name="estado_ticket_enum"),
         default="Pendiente",
     )
-    # server_default asigna la fecha desde el motor BD, no desde Python
     fecha_reporte = Column(DateTime, server_default=func.current_timestamp())
+    respuesta = Column(Text)
+    fecha_respuesta = Column(DateTime)
 
     empresa = relationship("Empresa", back_populates="tickets")

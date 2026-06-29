@@ -15,10 +15,10 @@ class TestBlocklist:
             "/auth/login", json={"correo": "usuario@test.com", "contrasena": "Test1234"}
         )
         refresh_token = login_resp.json()["refresh_token"]
-        assert decodificar_token(refresh_token) is not None
+        assert await decodificar_token(refresh_token) is not None
         resp = await client.post("/auth/refresh", json={"refresh_token": refresh_token})
         assert resp.status_code == 200
-        assert decodificar_token(refresh_token) is None
+        assert await decodificar_token(refresh_token) is None
 
 
 class TestTokenExpirado:

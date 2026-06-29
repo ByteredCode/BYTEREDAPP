@@ -24,6 +24,16 @@ services:
     tmpfs:
       - /var/lib/mysql
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   server:
     build:
       context: server
@@ -35,6 +45,8 @@ services:
       MYSQL_USER: root
       MYSQL_PASSWORD: root
       MYSQL_DATABASE: byteredapp
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       JWT_SECRET: ${JWT_SECRET:-super-secret-key-change-in-production}
       JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-60}
       JWT_REFRESH_TOKEN_EXPIRE_DAYS: ${JWT_REFRESH_TOKEN_EXPIRE_DAYS:-7}
@@ -46,6 +58,8 @@ services:
       TICKETS_EMAIL: ${TICKETS_EMAIL:-admin@byteredapp.com}
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
 

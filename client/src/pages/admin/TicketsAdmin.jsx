@@ -1,13 +1,15 @@
 import { useState, useEffect, useCallback } from "react"
 import api from "../../api/axios"
+import { useToast } from "../../context/ToastContext"
 
 const ESTADOS = ["Pendiente", "Leido", "Respondido", "Cerrado"]
 const IMPORTANCIA_CLASE = { Baja: "prioridad-baja", Media: "prioridad-media", Alta: "prioridad-alta", Critica: "prioridad-critica" }
 
-// Administracion de tickets: listado + modal detalle + cambio de estado
 export default function TicketsAdmin() {
+  const { showToast } = useToast()
   const [tickets, setTickets] = useState([])
   const [detalle, setDetalle] = useState(null)
+  const [respuesta, setRespuesta] = useState("")
 
   const fetchTickets = useCallback(async () => {
     try {
@@ -22,11 +24,19 @@ export default function TicketsAdmin() {
 
   async function cambiarEstado(id, estado) {
     try {
-      await api.put(`/tickets/${id}/estado`, { estado })
+      const body = { estado }
+      if (respuesta) body.respuesta = respuesta
+      await api.put(`/tickets/${id}/estado`, body)
+      setRespuesta("")
       fetchTickets()
     } catch (err) {
-      alert("Error: " + (err.response?.data?.detail || err.message))
+      showToast(err.response?.data?.detail || "Error al cambiar estado")
     }
+  }
+
+  function abrirDetalle(t) {
+    setDetalle(t)
+    setRespuesta("")
   }
 
   return (
@@ -62,6 +72,15 @@ export default function TicketsAdmin() {
                 <strong>Mensaje:</strong>
                 <p>{detalle.mensaje}</p>
               </div>
+
+              {detalle.respuesta && (
+                <div className="ticket-detalle-respuesta">
+                  <strong>Respuesta:</strong>
+                  <p>{detalle.respuesta}</p>
+                  <small>{detalle.fecha_respuesta ? new Date(detalle.fecha_respuesta).toLocaleString() : ""}</small>
+                </div>
+              )}
+
               <div className="modal-acciones">
                 <select
                   value={detalle.estado}
@@ -73,6 +92,26 @@ export default function TicketsAdmin() {
                 >
                   {ESTADOS.map((e) => <option key={e} value={e}>{e}</option>)}
                 </select>
+              </div>
+
+              <div className="ticket-respuesta-area">
+                <strong>Responder:</strong>
+                <textarea
+                  value={respuesta}
+                  onChange={(e) => setRespuesta(e.target.value)}
+                  placeholder="Escribe una respuesta..."
+                  rows={4}
+                />
+                <button
+                  className="btn btn-sm"
+                  disabled={!respuesta.trim()}
+                  onClick={() => {
+                    cambiarEstado(detalle.id_reporte, "Respondido")
+                    setDetalle({ ...detalle, estado: "Respondido", respuesta, fecha_respuesta: new Date().toISOString() })
+                  }}
+                >
+                  Enviar respuesta
+                </button>
               </div>
             </div>
             <div className="modal-acciones">
@@ -107,7 +146,7 @@ export default function TicketsAdmin() {
               <td>{t.estado}</td>
               <td>{t.fecha_reporte ? new Date(t.fecha_reporte).toLocaleDateString() : ""}</td>
               <td>
-                <button className="btn-secundario btn-sm" onClick={() => setDetalle(t)}>Ver</button>
+                <button className="btn-secundario btn-sm" onClick={() => abrirDetalle(t)}>Ver</button>
               </td>
             </tr>
           ))}

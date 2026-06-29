@@ -1,26 +1,25 @@
 import { useState, useEffect, useCallback } from "react"
 import api from "../api/axios"
+import { useToast } from "../context/ToastContext"
 
-// Vista de fichajes: historial + boton para registrar salida
 export default function Fichajes() {
+  const { showToast } = useToast()
   const [fichajes, setFichajes] = useState([])
-  const [abierto, setAbierto] = useState(null)  // Fichaje actual (sin salida)
+  const [abierto, setAbierto] = useState(null)
+  const [resumen, setResumen] = useState(null)
 
-  // useCallback para evitar que se recree la funcion en cada render
   const fetchData = useCallback(async () => {
     try {
-      // Carga paralela: historial y estado actual
-      // Promise.allSettled no falla si una peticion da error (ej: no hay fichaje abierto)
-      const [resFichajes, resActual] = await Promise.allSettled([
+      const [resFichajes, resActual, resResumen] = await Promise.allSettled([
         api.get("/fichajes"),
         api.get("/fichajes/actual"),
+        api.get("/fichajes/resumen"),
       ])
       if (resFichajes.status === "fulfilled") setFichajes(resFichajes.value.data)
       if (resActual.status === "fulfilled") setAbierto(resActual.value.data)
       else setAbierto(null)
-    } catch {
-      // ignore
-    }
+      if (resResumen.status === "fulfilled") setResumen(resResumen.value.data)
+    } catch { /* ignore */ }
   }, [])
 
   useEffect(() => { fetchData() }, [fetchData])
@@ -28,10 +27,15 @@ export default function Fichajes() {
   async function ficharSalida() {
     try {
       await api.post("/fichajes/salida")
-      fetchData()  // Recargar datos tras registrar salida
+      fetchData()
     } catch (err) {
-      alert("Error: " + (err.response?.data?.detail || err.message))
+      showToast(err.response?.data?.detail || err.message)
     }
+  }
+
+  function exportarCSV() {
+    const url = api.defaults?.baseURL ? api.defaults.baseURL + "/fichajes/exportar" : "/api/v1/fichajes/exportar"
+    window.open(url, "_blank")
   }
 
   return (
@@ -44,6 +48,31 @@ export default function Fichajes() {
             <button className="btn-danger" onClick={ficharSalida}>Registrar salida</button>
           </div>
         )}
+      </div>
+
+      {resumen && (
+        <div className="stats-grid fichajes-resumen">
+          <div className="stats-card">
+            <span className="stats-num">{resumen.horas_hoy}</span>
+            <span className="stats-label">Horas hoy</span>
+          </div>
+          <div className="stats-card">
+            <span className="stats-num">{resumen.horas_semana}</span>
+            <span className="stats-label">Horas esta semana</span>
+          </div>
+          <div className="stats-card">
+            <span className="stats-num">{resumen.horas_mes}</span>
+            <span className="stats-label">Horas este mes</span>
+          </div>
+          <div className="stats-card">
+            <span className="stats-num">{resumen.total_fichajes}</span>
+            <span className="stats-label">Total fichajes</span>
+          </div>
+        </div>
+      )}
+
+      <div className="pagina-admin-header">
+        <button className="btn btn-sm" onClick={exportarCSV}>Exportar CSV</button>
       </div>
 
       <table className="tabla-admin">

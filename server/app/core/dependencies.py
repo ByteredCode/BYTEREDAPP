@@ -8,15 +8,18 @@ from app.core.security import decodificar_token
 from app.models.usuario import Usuario
 
 # HTTPBearer extrae el token del header "Authorization: Bearer <token>"
-seguridad = HTTPBearer()
+seguridad = HTTPBearer(auto_error=False)
 
 
 async def get_usuario_actual(
-    credenciales: HTTPAuthorizationCredentials = Depends(seguridad),
+    credenciales: HTTPAuthorizationCredentials | None = Depends(seguridad),
     db: AsyncSession = Depends(get_db),
 ) -> Usuario:
-    # Decodifica y verifica que sea un access token (no refresh)
-    payload = decodificar_token(credenciales.credentials)
+    if credenciales is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Token requerido"
+        )
+    payload = await decodificar_token(credenciales.credentials)
     if payload is None or payload.get("tipo") != "access":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Token invalido"

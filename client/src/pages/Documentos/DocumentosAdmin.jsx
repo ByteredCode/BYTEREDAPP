@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from "react"
 import api from "../../api/axios"
+import { useToast } from "../../context/ToastContext"
 import PermisosDoc from "./PermisosDoc"
 
 // Administracion de documentos: subida, listado, descarga, permisos, eliminacion
 export default function DocumentosAdmin() {
+  const { showToast } = useToast()
   const [docs, setDocs] = useState([])
   const [mostrarSubida, setMostrarSubida] = useState(false)
   const [archivo, setArchivo] = useState(null)
@@ -35,7 +37,7 @@ export default function DocumentosAdmin() {
       setTipoDoc("")
       fetchDocs()
     } catch (err) {
-      alert("Error: " + (err.response?.data?.detail || err.message))
+      showToast(err.response?.data?.detail || "Error al subir")
     }
   }
 
@@ -45,13 +47,12 @@ export default function DocumentosAdmin() {
       await api.delete(`/documentos/${id}`)
       fetchDocs()
     } catch (err) {
-      alert("Error: " + (err.response?.data?.detail || err.message))
+      showToast(err.response?.data?.detail || "Error al eliminar")
     }
   }
 
   async function descargar(id) {
     try {
-      // Descarga usando blob + ObjectURL para forzar descarga en el cliente
       const res = await api.get(`/documentos/${id}/descargar`, { responseType: "blob" })
       const url = URL.createObjectURL(res.data)
       const a = document.createElement("a")
@@ -60,7 +61,7 @@ export default function DocumentosAdmin() {
       a.click()
       URL.revokeObjectURL(url)
     } catch (err) {
-      alert("Error al descargar")
+      showToast("Error al descargar")
     }
   }
 

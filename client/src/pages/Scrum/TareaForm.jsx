@@ -1,11 +1,13 @@
 import { useState } from "react"
 import api from "../../api/axios"
+import { useToast } from "../../context/ToastContext"
 
 const PRIORIDADES = ["Baja", "Media", "Alta", "Critica"]
 const COLUMNAS = ["Todo", "Haciendose", "En revision", "Done"]
 
 // Modal de formulario para crear/editar tareas
 export default function TareaForm({ editando, columna, sprints, sprintActivo, onClose, onSaved }) {
+  const { showToast } = useToast()
   const [form, setForm] = useState({
     titulo: editando?.titulo || "",
     descripcion: editando?.descripcion || "",
@@ -34,7 +36,7 @@ export default function TareaForm({ editando, columna, sprints, sprintActivo, on
       onSaved()  // Recargar el tablero despues de guardar
       onClose()
     } catch (err) {
-      alert("Error: " + (err.response?.data?.detail || err.message))
+      showToast(err.response?.data?.detail || "Error al guardar tarea")
     }
   }
 

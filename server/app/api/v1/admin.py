@@ -5,6 +5,7 @@ from app.core.database import get_db
 from app.core.dependencies import get_usuario_actual
 from app.models.usuario import Usuario
 from app.schemas.admin import (
+    AdminStatsResponse,
     EmpresaCreate,
     EmpresaResponse,
     EmpresaUpdate,
@@ -206,6 +207,18 @@ async def toggle_servicio(
             detail="No tienes permisos para modificar servicios",
         )
     return await admin_service.toggle_servicio(db, codigo_empresa, body)
+
+
+# ────────────────────────────── ESTADISTICAS ──────────────────────────────
+
+
+@router.get("/stats", response_model=AdminStatsResponse)
+async def obtener_stats(
+    usuario: Usuario = Depends(get_usuario_actual),
+    db: AsyncSession = Depends(get_db),
+):
+    codigo_empresa = None if usuario.rol == "admin_total" else usuario.codigo_empresa
+    return await admin_service.obtener_stats(db, codigo_empresa)
 
 
 # ────────────────────────────── UTILS ──────────────────────────────

@@ -11,6 +11,10 @@ export default function Dashboard() {
       <p>Bienvenido, {usuario?.nombre}</p>
 
       <div className="dashboard-modulos">
+        <Link to="/mi-empresa" className="modulo-card">
+          <h3>Mi Empresa</h3>
+          <p>Datos corporativos</p>
+        </Link>
         <Link to="/scrum/tablero" className="modulo-card">
           <h3>Scrum</h3>
           <p>Tablero Kanban y sprints</p>

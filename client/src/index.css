@@ -506,3 +506,32 @@ a:hover { text-decoration: underline; }
   .nav-left { gap: 0; }
   .nav-logo { margin-right: 0.35rem; font-size: 1rem; }
 }
+
+.toast-container {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 380px;
+}
+
+.toast {
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  color: #fff;
+  box-shadow: var(--shadow-lg);
+  animation: toast-in 0.3s ease;
+}
+
+.toast-error { background: var(--danger); }
+.toast-success { background: var(--success); }
+.toast-info { background: var(--primary); }
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(100%); }
+  to { opacity: 1; transform: translateX(0); }
+}

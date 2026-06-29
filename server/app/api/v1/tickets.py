@@ -64,4 +64,4 @@ async def put_estado_ticket(
     db: AsyncSession = Depends(get_db),
     codigo_empresa: int = Depends(get_tenant_filter),
 ):
-    return await actualizar_estado_ticket(db, id_reporte, data.estado, codigo_empresa)
+    return await actualizar_estado_ticket(db, id_reporte, data.estado, codigo_empresa, data.respuesta)

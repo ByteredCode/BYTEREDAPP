@@ -1,9 +1,14 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import Fichajes from '../Fichajes'
+import { ToastProvider } from '../../context/ToastContext'
 
 vi.mock('../../api/axios', () => ({
   default: { get: vi.fn(), post: vi.fn() }
 }))
+
+function renderConToast(ui) {
+  return render(<ToastProvider>{ui}</ToastProvider>)
+}
 
 describe('Fichajes', () => {
   beforeEach(() => { vi.clearAllMocks() })
@@ -15,7 +20,7 @@ describe('Fichajes', () => {
       if (url === '/fichajes/actual') return Promise.reject(new Error('No open'))
       return Promise.reject(new Error('Unknown'))
     })
-    render(<Fichajes />)
+    renderConToast(<Fichajes />)
     await waitFor(() => {
       expect(screen.getByText('Sin fichajes')).toBeInTheDocument()
     })
@@ -29,7 +34,7 @@ describe('Fichajes', () => {
       if (url === '/fichajes/actual') return Promise.resolve({ data: abierto })
       return Promise.reject(new Error('Unknown'))
     })
-    render(<Fichajes />)
+    renderConToast(<Fichajes />)
     await waitFor(() => {
       expect(screen.getByText('Registrar salida')).toBeInTheDocument()
     })
@@ -45,7 +50,7 @@ describe('Fichajes', () => {
       if (url === '/fichajes/actual') return Promise.reject(new Error('No open'))
       return Promise.reject(new Error('Unknown'))
     })
-    render(<Fichajes />)
+    renderConToast(<Fichajes />)
     await waitFor(() => {
       expect(screen.getByText('1')).toBeInTheDocument()
     })
@@ -60,13 +65,13 @@ describe('Fichajes', () => {
       return Promise.reject(new Error('Unknown'))
     })
     api.post.mockResolvedValueOnce({})
-    render(<Fichajes />)
+    renderConToast(<Fichajes />)
     await waitFor(() => expect(screen.getByText('Registrar salida')).toBeInTheDocument())
     fireEvent.click(screen.getByText('Registrar salida'))
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/fichajes/salida'))
   })
 
-  it('shows alert on salida API error', async () => {
+  it('shows toast on salida API error', async () => {
     const api = (await import('../../api/axios')).default
     const abierto = { id_fichaje: 1, hora_entrada: '2025-01-01T08:00:00Z' }
     api.get.mockImplementation((url) => {
@@ -75,12 +80,12 @@ describe('Fichajes', () => {
       return Promise.reject(new Error('Unknown'))
     })
     api.post.mockRejectedValueOnce({ response: { data: { detail: 'Error al fichar' } } })
-    const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {})
-    render(<Fichajes />)
+    renderConToast(<Fichajes />)
     await waitFor(() => expect(screen.getByText('Registrar salida')).toBeInTheDocument())
     fireEvent.click(screen.getByText('Registrar salida'))
-    await waitFor(() => expect(alertMock).toHaveBeenCalled())
-    alertMock.mockRestore()
+    await waitFor(() => {
+      expect(screen.getByText('Error al fichar')).toBeInTheDocument()
+    })
   })
 
   it('handles failed fichajes fetch gracefully', async () => {
@@ -90,7 +95,7 @@ describe('Fichajes', () => {
       if (url === '/fichajes/actual') return Promise.resolve({ data: null })
       return Promise.reject(new Error('Unknown'))
     })
-    render(<Fichajes />)
+    renderConToast(<Fichajes />)
     await waitFor(() => expect(screen.getByText('Sin fichajes')).toBeInTheDocument())
   })
 })

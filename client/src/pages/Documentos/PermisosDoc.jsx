@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from "react"
 import api from "../../api/axios"
+import { useToast } from "../../context/ToastContext"
 
 // Modal para gestionar permisos de acceso a un documento
 export default function PermisosDoc({ doc, onClose, onUpdated }) {
+  const { showToast } = useToast()
   const [permisos, setPermisos] = useState([])
   const [nuevoId, setNuevoId] = useState("")
 
@@ -24,7 +26,7 @@ export default function PermisosDoc({ doc, onClose, onUpdated }) {
       setNuevoId("")
       fetchPermisos()
     } catch (err) {
-      alert("Error: " + (err.response?.data?.detail || err.message))
+      showToast(err.response?.data?.detail || "Error al añadir permiso")
     }
   }
 
@@ -33,7 +35,7 @@ export default function PermisosDoc({ doc, onClose, onUpdated }) {
       await api.delete(`/documentos/${doc.id_documento}/permisos/${userId}`)
       fetchPermisos()
     } catch (err) {
-      alert("Error: " + (err.response?.data?.detail || err.message))
+      showToast(err.response?.data?.detail || "Error al quitar permiso")
     }
   }
 

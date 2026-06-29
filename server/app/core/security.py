@@ -4,19 +4,10 @@ from datetime import datetime, timedelta, timezone
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
+from app.core.blocklist import esta_en_blocklist
 from app.core.config import config
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-_token_blocklist: set[str] = set()
-
-
-def esta_en_blocklist(jti: str) -> bool:
-    return jti in _token_blocklist
-
-
-def agregar_a_blocklist(jti: str) -> None:
-    _token_blocklist.add(jti)
 
 
 def hash_contrasena(contrasena: str) -> str:
@@ -45,11 +36,11 @@ def crear_refresh_token(data: dict) -> str:
     return jwt.encode(to_encode, config.JWT_SECRET, algorithm="HS256")
 
 
-def decodificar_token(token: str) -> dict | None:
+async def decodificar_token(token: str) -> dict | None:
     try:
         payload = jwt.decode(token, config.JWT_SECRET, algorithms=["HS256"])
         jti = payload.get("jti")
-        if jti and esta_en_blocklist(jti):
+        if jti and await esta_en_blocklist(jti):
             return None
         return payload
     except JWTError:

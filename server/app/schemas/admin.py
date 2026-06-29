@@ -61,3 +61,19 @@ class ServicioResponse(BaseModel):
     activo: bool
 
     model_config = {"from_attributes": True}
+
+
+class ConteoPorClave(BaseModel):
+    clave: str
+    total: int
+
+
+class AdminStatsResponse(BaseModel):
+    total_empresas: int
+    total_usuarios: int
+    usuarios_por_rol: list[ConteoPorClave]
+    tickets_por_estado: list[ConteoPorClave]
+    fichajes_abiertos: int
+    empresas_sin_web: int
+    tareas_por_columna: list[ConteoPorClave]
+    tickets_ultimo_mes: int
