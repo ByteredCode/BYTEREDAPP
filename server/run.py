@@ -30,7 +30,7 @@ async def lifespan(app: FastAPI):
     if config.JWT_SECRET in SECRETOS_POR_DEFECTO or config.MYSQL_PASSWORD in SECRETOS_POR_DEFECTO:
         logger.error("SECRETOS POR DEFECTO DETECTADOS — Cambia JWT_SECRET y MYSQL_PASSWORD en produccion")
     logger.info(f"Iniciando BYTEREDAPP API — entorno: {'produccion' if config.JWT_SECRET != 'changeme' else 'desarrollo'}")
-    logger.info(f"Documentacion {'habilitada' if config.docs_url else 'deshabilitada'} (CORS: {config.CORS_ORIGINS})")
+    logger.info(f"Documentacion {'habilitada' if app.docs_url else 'deshabilitada'} (CORS: {config.CORS_ORIGINS})")
     yield
     await cerrar_blocklist()
 
