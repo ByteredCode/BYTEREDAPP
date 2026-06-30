@@ -41,8 +41,8 @@ app = FastAPI(
     title="BYTEREDAPP API",
     version="0.1.0",
     lifespan=lifespan,
-    docs_url="/docs" if cors_origins == ["http://localhost:5173"] else None,
-    redoc_url="/redoc" if cors_origins == ["http://localhost:5173"] else None,
+    docs_url="/docs",
+    redoc_url="/redoc",
 )
 
 app.state.limiter = limiter
