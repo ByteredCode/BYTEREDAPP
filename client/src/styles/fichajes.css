@@ -1,0 +1,10 @@
+.fichajes-resumen { margin-bottom: 1.5rem; }
+.fichaje-abierto {
+  display: flex; align-items: center; gap: 1rem;
+  background: #fff8e1; padding: 0.65rem 1rem;
+  border-radius: var(--radius);
+  border: 1px solid #ffe082;
+  font-size: 0.9rem; font-weight: 500;
+}
+.fichaje-abierto span { color: #e65100; }
+.fichaje-abierto .btn-danger { padding: 0.3rem 0.75rem; font-size: 0.8rem; }

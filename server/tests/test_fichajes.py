@@ -1,0 +1,112 @@
+# Tests de integración para el módulo de fichajes (entrada, salida, listado, resumen, exportación)
+import pytest
+from httpx import AsyncClient
+
+
+class TestFichajes:
+
+    async def test_fichar_entrada(self, client: AsyncClient, headers_usuario):
+        # Un usuario puede registrar su entrada (inicio de jornada laboral)
+        response = await client.post("/fichajes/entrada", headers=headers_usuario)
+        assert response.status_code == 201
+        data = response.json()
+        assert data["hora_entrada"] is not None
+        assert data["hora_salida"] is None
+        assert data["codigo_usuario"] is not None
+
+    async def test_fichaje_duplicado(self, client: AsyncClient, headers_usuario):
+        # No se puede fichar entrada si ya hay un fichaje abierto (sin salida)
+        await client.post("/fichajes/entrada", headers=headers_usuario)
+        response = await client.post("/fichajes/entrada", headers=headers_usuario)
+        assert response.status_code == 400
+
+    async def test_fichar_salida(self, client: AsyncClient, headers_usuario):
+        # Tras una entrada, registrar salida debe completar el fichaje
+        await client.post("/fichajes/entrada", headers=headers_usuario)
+        response = await client.post("/fichajes/salida", headers=headers_usuario)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["hora_salida"] is not None
+
+    async def test_fichar_salida_sin_entrada(self, client: AsyncClient, headers_usuario):
+        # No se puede registrar salida sin una entrada previa abierta
+        response = await client.post("/fichajes/salida", headers=headers_usuario)
+        assert response.status_code == 404
+
+    async def test_obtener_fichaje_actual(self, client: AsyncClient, headers_usuario):
+        # El endpoint /fichajes/actual debe devolver el fichaje abierto (si existe)
+        await client.post("/fichajes/entrada", headers=headers_usuario)
+        response = await client.get("/fichajes/actual", headers=headers_usuario)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["hora_salida"] is None
+
+    async def test_obtener_fichaje_actual_sin_abierto(self, client: AsyncClient, headers_usuario):
+        # Si no hay fichaje abierto, el endpoint debe devolver 404
+        response = await client.get("/fichajes/actual", headers=headers_usuario)
+        assert response.status_code == 404
+
+    async def test_listar_fichajes(self, client: AsyncClient, headers_usuario):
+        # El historial de fichajes del usuario debe mostrar todas las entradas registradas
+        await client.post("/fichajes/entrada", headers=headers_usuario)
+        await client.post("/fichajes/salida", headers=headers_usuario)
+        await client.post("/fichajes/entrada", headers=headers_usuario)
+
+        response = await client.get("/fichajes", headers=headers_usuario)
+        assert response.status_code == 200
+        data = response.json()
+        assert "items" in data
+        assert isinstance(data["items"], list)
+        assert len(data["items"]) >= 2
+
+    async def test_fichaje_otro_usuario(
+        self, client: AsyncClient, headers_usuario, test_session, test_empresa
+    ):
+        # Un usuario no debe ver fichajes de otros usuarios (aislamiento multi-tenant)
+        from app.core.security import hash_contrasena, crear_access_token
+        from app.models.usuario import Usuario
+
+        otro = Usuario(
+            correo="otro_fichaje@test.com",
+            contrasena=hash_contrasena("Pass1234"),
+            nombre="Otro Fichaje",
+            rol="usuario",
+            codigo_empresa=test_empresa.codigo_empresa,
+        )
+        test_session.add(otro)
+        await test_session.flush()
+
+        token_otro = crear_access_token(
+            {"sub": str(otro.codigo_usuario), "empresa": otro.codigo_empresa}
+        )
+        headers_otro = {"Authorization": f"Bearer {token_otro}"}
+
+        await client.post("/fichajes/entrada", headers=headers_otro)
+
+        response = await client.get("/fichajes", headers=headers_usuario)
+        assert response.status_code == 200
+        data = response.json()
+        for fichaje in data["items"]:
+            assert fichaje["codigo_usuario"] != otro.codigo_usuario
+
+    async def test_resumen(self, client: AsyncClient, headers_usuario):
+        # El resumen debe contener estadísticas de horas (hoy, semana, mes) y total de fichajes
+        await client.post("/fichajes/entrada", headers=headers_usuario)
+        await client.post("/fichajes/salida", headers=headers_usuario)
+        response = await client.get("/fichajes/resumen", headers=headers_usuario)
+        assert response.status_code == 200
+        data = response.json()
+        assert "horas_hoy" in data
+        assert "horas_semana" in data
+        assert "horas_mes" in data
+        assert "total_fichajes" in data
+        assert data["total_fichajes"] >= 1
+
+    async def test_exportar_csv(self, client: AsyncClient, headers_usuario):
+        # La exportación a CSV debe devolver un archivo con cabeceras y datos correctos
+        await client.post("/fichajes/entrada", headers=headers_usuario)
+        await client.post("/fichajes/salida", headers=headers_usuario)
+        response = await client.get("/fichajes/exportar", headers=headers_usuario)
+        assert response.status_code == 200
+        assert "text/csv" in response.headers["content-type"]
+        assert "id,usuario,empresa,entrada,salida,duracion_min" in response.text

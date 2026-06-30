@@ -1,0 +1,79 @@
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Request
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.dependencies import get_db, get_tenant_filter, get_usuario_actual
+from app.core.limiter import limiter
+from app.models.usuario import Usuario
+from app.schemas.admin import Paginacion
+from app.schemas.ticket import TicketCreate, TicketResponse, TicketUpdateEstado
+from app.services.ticket_service import (
+    actualizar_estado_ticket,
+    crear_ticket,
+    listar_tickets,
+    obtener_ticket,
+)
+
+router = APIRouter(prefix="/tickets", tags=["Tickets"])
+# auto_error=False permite que el endpoint de creación sea accesible sin token
+seguridad_ticket = HTTPBearer(auto_error=False)
+
+
+async def get_usuario_opcional(
+    credenciales: Optional[HTTPAuthorizationCredentials] = Depends(seguridad_ticket),
+    db: AsyncSession = Depends(get_db),
+) -> Optional[Usuario]:
+    # Si no hay credenciales, devolvemos None en vez de rechazar la petición
+    if credenciales is None:
+        return None
+    try:
+        return await get_usuario_actual(credenciales, db)
+    except Exception:
+        # Token inválido no debe bloquear; el usuario anónimo aún puede crear tickets
+        return None
+
+
+@router.post("", response_model=TicketResponse, status_code=201)
+@limiter.limit("10/minute")
+async def post_ticket(
+    request: Request,
+    data: TicketCreate,
+    db: AsyncSession = Depends(get_db),
+    usuario: Optional[Usuario] = Depends(get_usuario_opcional),
+):
+    # Endpoint público: cualquier persona (autenticada o no) puede reportar un problema
+    codigo_usuario = usuario.codigo_usuario if usuario else None
+    return await crear_ticket(db, data, codigo_usuario)
+
+
+@router.get("")
+async def get_tickets(
+    db: AsyncSession = Depends(get_db),
+    codigo_empresa: int = Depends(get_tenant_filter),
+    pag: Paginacion = Depends(),
+):
+    items, total = await listar_tickets(db, codigo_empresa, pag.skip, pag.limit)
+    return {"items": items, "total": total}
+
+
+@router.get("/{id_reporte}", response_model=TicketResponse)
+async def get_ticket(
+    id_reporte: int,
+    db: AsyncSession = Depends(get_db),
+    codigo_empresa: int = Depends(get_tenant_filter),
+):
+    return await obtener_ticket(db, id_reporte, codigo_empresa)
+
+
+@router.put("/{id_reporte}/estado", response_model=TicketResponse)
+async def put_estado_ticket(
+    id_reporte: int,
+    data: TicketUpdateEstado,
+    db: AsyncSession = Depends(get_db),
+    codigo_empresa: int = Depends(get_tenant_filter),
+):
+    # Se permite incluir una respuesta (texto) al cambiar el estado para que
+    # el admin pueda comunicarse con el reportante sin usar otro canal
+    return await actualizar_estado_ticket(db, id_reporte, data.estado, codigo_empresa, data.respuesta)

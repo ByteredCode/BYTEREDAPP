@@ -6,77 +6,96 @@ Autenticación: JWT en header `Authorization: Bearer <token>`
 
 ## Auth (`/auth`)
 
-| Método | Ruta | Descripción | Auth |
-|---|---|---|---|
-| POST | `/auth/register` | Registrar nuevo usuario | No |
-| POST | `/auth/login` | Iniciar sesión (devuelve JWT + registra fichaje) | No |
-| POST | `/auth/refresh` | Refrescar token | Refresh token |
-| GET | `/auth/me` | Obtener perfil del usuario actual | Sí |
+| Método | Ruta | Descripción | Auth | Rate limit |
+|--------|------|-------------|------|------------|
+| POST | `/auth/register` | Registrar nuevo usuario | No | 10/min |
+| POST | `/auth/login` | Iniciar sesión (devuelve JWT + auto-fichaje) | No | 10/min |
+| POST | `/auth/refresh` | Refrescar token (rotación: invalida anterior) | Refresh token | No |
+| POST | `/auth/logout` | Cerrar sesión (invalida refresh + access tokens) | Sí | No |
+| GET | `/auth/me` | Obtener perfil del usuario actual | Sí | No |
 
-## Empresas (`/companies`) — Solo admin_total
+## Admin (`/admin`)
 
-| Método | Ruta | Descripción |
-|---|---|---|
-| GET | `/companies` | Listar todas las empresas |
-| POST | `/companies` | Crear empresa |
-| GET | `/companies/{id}` | Obtener empresa |
-| PUT | `/companies/{id}` | Actualizar empresa |
-| DELETE | `/companies/{id}` | Eliminar empresa |
-| GET | `/companies/{id}/services` | Obtener servicios de la empresa |
-| PUT | `/companies/{id}/services` | Actualizar servicios (feature flags) |
+Protegido por rol: `admin_total` o `admin_empresa` según el endpoint.
 
-## Usuarios (`/users`)
+| Método | Ruta | Descripción | Rol | Paginación |
+|--------|------|-------------|-----|------------|
+| GET | `/admin/empresas` | Listar empresas | admin_total | skip, limit |
+| POST | `/admin/empresas` | Crear empresa + feature flags por defecto | admin_total | No |
+| GET | `/admin/empresas/{id}` | Obtener empresa | admin_total / admin_empresa | No |
+| PUT | `/admin/empresas/{id}` | Actualizar empresa | admin_total | No |
+| DELETE | `/admin/empresas/{id}` | Eliminar empresa | admin_total | No |
+| GET | `/admin/empresas/{id}/usuarios` | Listar usuarios de una empresa | admin_total / admin_empresa | skip, limit |
+| GET | `/admin/empresas/{id}/servicios` | Listar feature flags | admin_total / admin_empresa | No |
+| PUT | `/admin/empresas/{id}/servicios` | Activar/desactivar servicio | admin_total | No |
+| GET | `/admin/usuarios` | Listar usuarios (global o por empresa) | admin_total / admin_empresa | skip, limit |
+| POST | `/admin/usuarios` | Crear usuario | admin_total / admin_empresa | No |
+| PUT | `/admin/usuarios/{id}` | Actualizar usuario | admin_total / admin_empresa | No |
+| DELETE | `/admin/usuarios/{id}` | Eliminar usuario | admin_total / admin_empresa | No |
+| GET | `/admin/stats` | Estadísticas del dashboard | admin_total / admin_empresa | No |
 
-| Método | Ruta | Descripción | Auth |
-|---|---|---|---|
-| GET | `/users` | Listar usuarios (admin_total: todos, admin_empresa: su empresa) | Sí |
-| POST | `/users` | Crear usuario en la empresa | Sí |
-| GET | `/users/{id}` | Obtener usuario | Sí |
-| PUT | `/users/{id}` | Actualizar usuario | Sí |
-| DELETE | `/users/{id}` | Eliminar usuario | admin_total/admin_empresa |
-
-## Tareas (`/tasks`) — Scrum
-
-| Método | Ruta | Descripción |
-|---|---|---|
-| GET | `/tasks` | Listar tareas de la empresa |
-| POST | `/tasks` | Crear tarea |
-| GET | `/tasks/{id}` | Obtener tarea |
-| PUT | `/tasks/{id}` | Actualizar tarea (incluye mover columna) |
-| DELETE | `/tasks/{id}` | Eliminar tarea |
-
-## Documentos (`/documents`) — DPD/ISO
+## Empresa (`/empresa`)
 
 | Método | Ruta | Descripción |
-|---|---|---|
-| GET | `/documents` | Listar documentos accesibles |
-| POST | `/documents` | Subir documento |
-| GET | `/documents/{id}` | Obtener documento |
-| DELETE | `/documents/{id}` | Eliminar documento |
-| GET | `/documents/{id}/permissions` | Ver permisos del documento |
-| POST | `/documents/{id}/permissions` | Añadir permiso a usuario |
-| DELETE | `/documents/{id}/permissions/{userId}` | Revocar permiso |
+|--------|------|-------------|
+| GET | `/empresa/mi-empresa` | Datos de la empresa del usuario autenticado |
+| PATCH | `/empresa/mi-empresa` | Actualizar datos de la propia empresa |
+
+## Scrum (`/scrum`)
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/scrum/tablero` | Tablero Kanban (tareas agrupadas por columna) |
+| GET | `/scrum/tareas` | Listar tareas |
+| POST | `/scrum/tareas` | Crear tarea |
+| GET | `/scrum/tareas/{id}` | Obtener tarea |
+| PUT | `/scrum/tareas/{id}` | Actualizar tarea |
+| DELETE | `/scrum/tareas/{id}` | Eliminar tarea |
+| PUT | `/scrum/tareas/{id}/mover` | Mover tarea de columna/posición |
+| GET | `/scrum/sprints` | Listar sprints |
+| POST | `/scrum/sprints` | Crear sprint |
+| PUT | `/scrum/sprints/{id}` | Actualizar sprint |
+| DELETE | `/scrum/sprints/{id}` | Eliminar sprint |
 
 ## Tickets (`/tickets`)
 
+| Método | Ruta | Descripción | Auth | Rate limit |
+|--------|------|-------------|------|------------|
+| POST | `/tickets` | Crear ticket (público o autenticado) | Opcional | 10/min |
+| GET | `/tickets` | Listar tickets de la empresa | Sí | No |
+| GET | `/tickets/{id}` | Obtener ticket | Sí | No |
+| PUT | `/tickets/{id}/estado` | Cambiar estado + responder | Sí (admin) | No |
+
+## Documentos (`/documentos`)
+
 | Método | Ruta | Descripción |
-|---|---|---|
-| POST | `/tickets` | Crear ticket (público o autenticado) |
-| GET | `/tickets` | Listar tickets (empresa o admin) |
-| GET | `/tickets/{id}` | Obtener ticket |
-| PUT | `/tickets/{id}/status` | Actualizar estado del ticket |
+|--------|------|-------------|
+| GET | `/documentos` | Listar documentos accesibles |
+| POST | `/documentos` | Subir documento (multipart) |
+| GET | `/documentos/{id}/descargar` | Descargar archivo |
+| DELETE | `/documentos/{id}` | Eliminar documento |
+| GET | `/documentos/{id}/permisos` | Ver permisos del documento |
+| POST | `/documentos/{id}/permisos` | Añadir permiso a usuario |
+| DELETE | `/documentos/{id}/permisos/{user_id}` | Revocar permiso |
 
 ## Fichajes (`/fichajes`)
 
 | Método | Ruta | Descripción |
-|---|---|---|
+|--------|------|-------------|
 | GET | `/fichajes` | Histórico de fichajes del usuario |
-| POST | `/fichajes/entrada` | Registrar hora de entrada |
-| PUT | `/fichajes/{id}/salida` | Registrar hora de salida |
+| GET | `/fichajes/actual` | Fichaje abierto (entrada sin salida) |
+| GET | `/fichajes/resumen` | Estadísticas (hoy, semana, mes) |
+| POST | `/fichajes/salida` | Registrar hora de salida |
+| GET | `/fichajes/exportar` | Exportar CSV |
 
-## Admin (`/admin`) — Solo admin_total
+## Redirección (`/redireccion`)
 
 | Método | Ruta | Descripción |
-|---|---|---|
-| GET | `/admin/stats` | Estadísticas generales |
-| GET | `/admin/audit` | Registro de actividad |
+|--------|------|-------------|
+| GET | `/redireccion/{codigo}` | Redirigir a web de la empresa por código |
+
+## Health
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/health` | Health check |

@@ -1,0 +1,47 @@
+.cargando {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+.error {
+  background: #fff0f0;
+  color: var(--danger);
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  margin-bottom: 1rem;
+  border: 1px solid #ffd6d6;
+  font-size: 0.9rem;
+}
+.sin-datos {
+  text-align: center;
+  padding: 2.5rem 1rem;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+.error-boundary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  text-align: center;
+  padding: 2rem;
+}
+.error-boundary h1 {
+  color: var(--danger, #dc3545);
+  margin-bottom: 1rem;
+}
+.error-boundary p {
+  color: var(--text-muted, #666);
+  margin-bottom: 1.5rem;
+}
+.error-boundary button {
+  padding: 0.6rem 1.5rem;
+  background: var(--primary, #2563eb);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius, 6px);
+  font-size: 1rem;
+  cursor: pointer;
+}

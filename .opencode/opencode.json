@@ -52,6 +52,48 @@
         "grep": { "server/**": "allow", "*": "deny" },
         "bash": { "alembic *": "allow", "docker *": "allow", "*": "ask" }
       }
+    },
+    "agente-profesor": {
+      "description": "Profesor universitario de programación. Invócalo cuando quieras aprender sobre cualquier parte del código. Solo explica, no modifica nada ni ejecuta comandos.",
+      "mode": "subagent",
+      "permission": {
+        "read": "allow",
+        "edit": "deny",
+        "bash": "deny",
+        "glob": "allow",
+        "grep": "allow",
+        "webfetch": "deny",
+        "websearch": "deny",
+        "task": "deny"
+      }
+    },
+    "agente-comentador": {
+      "description": "Comentador de código — cuando se le invoca, añade comentarios didácticos en español a archivos de código del proyecto (backend y frontend). No modifica lógica, solo documenta.",
+      "mode": "subagent",
+      "permission": {
+        "read": "allow",
+        "edit": "allow",
+        "bash": "deny",
+        "glob": "allow",
+        "grep": "allow",
+        "webfetch": "deny",
+        "websearch": "deny",
+        "task": "deny"
+      }
+    },
+    "agente-ciberseguridad": {
+      "description": "Especialista en ciberseguridad OWASP. Audita, analiza y corrige vulnerabilidades en backend y frontend según OWASP Top 10. Propone contra medidas y buenas prácticas.",
+      "mode": "subagent",
+      "permission": {
+        "read": "allow",
+        "edit": "allow",
+        "bash": { "pip *": "allow", "npm *": "allow", "pnpm *": "allow", "pytest *": "allow", "python *": "allow", "docker *": "allow", "*": "ask" },
+        "glob": "allow",
+        "grep": "allow",
+        "webfetch": "allow",
+        "websearch": "allow",
+        "task": "allow"
+      }
     }
   }
 }
