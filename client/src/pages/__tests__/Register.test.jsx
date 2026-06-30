@@ -1,3 +1,5 @@
+// Tests unitarios de la página de registro (Register)
+// Verificamos renderizado de campos, validación y manejo de errores del backend
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import Register from '../Register'
@@ -18,6 +20,7 @@ describe('Register', () => {
   const renderRegister = () => render(<BrowserRouter><Register /></BrowserRouter>)
 
   it('renders all form fields', () => {
+    // El formulario de registro debe mostrar todos los campos requeridos
     renderRegister()
     expect(screen.getByPlaceholderText('Nombre completo')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Correo electrónico')).toBeInTheDocument()
@@ -27,6 +30,7 @@ describe('Register', () => {
   })
 
   it('validates required fields', () => {
+    // Los campos obligatorios deben tener el atributo required del navegador
     renderRegister()
     const inputs = screen.getAllByRole('textbox')
     inputs.concat(screen.getAllByRole('spinbutton')).forEach((input) => {
@@ -35,6 +39,7 @@ describe('Register', () => {
   })
 
   it('shows error for short password (mock API)', async () => {
+    // El backend rechaza contraseñas cortas; el frontend debe mostrar el mensaje de error
     const api = (await import('../../api/axios')).default
     api.post.mockRejectedValueOnce({
       response: { data: { detail: 'La contraseña debe tener al menos 8 caracteres' } }
@@ -51,6 +56,7 @@ describe('Register', () => {
   })
 
   it('shows error for weak password (no uppercase)', async () => {
+    // El backend rechaza contraseñas sin mayúsculas; el frontend debe mostrar el error
     const api = (await import('../../api/axios')).default
     api.post.mockRejectedValueOnce({
       response: { data: { detail: 'La contraseña debe contener al menos una mayúscula' } }

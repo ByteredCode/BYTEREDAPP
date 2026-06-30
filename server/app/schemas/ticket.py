@@ -3,18 +3,32 @@ from typing import Optional
 
 from pydantic import BaseModel
 
+# ── Schemas del módulo de tickets ─────────────────────────────────────
+# Separamos creación, actualización de estado y respuesta para evitar
+# que el cliente pueda modificar campos que no le corresponden
+# (por ej. un usuario no debería poder cambiar el estado a "resuelto"
+#  sin que el admin lo procese).
+
 
 class TicketCreate(BaseModel):
-    # Campos opcionales para tickets anonimos (sin autenticacion)
+    # Los campos de contacto son opcionales porque el formulario de
+    # tickets puede ser anónimo (sin sesión iniciada). Si el usuario
+    # está autenticado, estos datos se rellenan desde el JWT.
     nombre_contacto: Optional[str] = None
     correo_contacto: Optional[str] = None
     asunto: Optional[str] = None
     nivel_importancia: str = "Media"
-    mensaje: str  # Unico campo obligatorio
+    # Solo 'mensaje' es obligatorio: un ticket siempre necesita un
+    # cuerpo, aunque quien lo envía no quiera identificarse.
+    mensaje: str
     codigo_empresa: int
 
 
 class TicketUpdateEstado(BaseModel):
+    # Este schema es deliberadamente pequeño: solo permitimos cambiar
+    # el estado y añadir una respuesta. El resto de campos (asunto,
+    # mensaje, etc.) son inmutables una vez creados por razones de
+    # auditoría (trazabilidad del ticket).
     estado: str
     respuesta: Optional[str] = None
 

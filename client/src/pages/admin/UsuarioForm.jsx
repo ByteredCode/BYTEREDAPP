@@ -3,6 +3,8 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom"
 import api from "../../api/axios"
 import { useAuth } from "../../context/AuthContext"
 
+// Solo roles asignables desde el panel; admin_total se omite porque es un rol reservado
+// que solo se asigna desde la base de datos (no debe poder crearse desde el frontend por seguridad)
 const ROLES = [
   { valor: "usuario", etiqueta: "Usuario" },
   { valor: "admin_empresa", etiqueta: "Admin empresa" },
@@ -13,29 +15,36 @@ export default function UsuarioForm() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const { usuario: usuarioActual } = useAuth()
+  // Si hay id en la URL estamos editando; si no, creando uno nuevo
   const esEdicion = Boolean(id)
 
   const [correo, setCorreo] = useState("")
   const [contrasena, setContrasena] = useState("")
   const [nombre, setNombre] = useState("")
   const [rol, setRol] = useState("usuario")
+  // La empresa se pre-rellena con el query param ?empresa= o la empresa del usuario actual
   const [codigoEmpresa, setCodigoEmpresa] = useState(
     searchParams.get("empresa") || usuarioActual?.codigo_empresa || ""
   )
+  // Solo mostramos spinner de carga cuando editamos, porque en creación no hay datos que precargar
   const [cargando, setCargando] = useState(esEdicion)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState("")
 
+  // Guardamos esta comprobación en una constante para evitar recalcular el string cada render y centralizar la lógica de permisos
   const esAdminTotal = usuarioActual?.rol === "admin_total"
 
   useEffect(() => {
+    // Si no hay id (creación) no precargamos nada
     if (!id) return
 
+    // Usamos async/await en vez de .then() porque la lógica tiene bifurcaciones (if/else) que serían más difíciles de leer con promesas encadenadas
     const cargarUsuario = async () => {
       try {
         // Primero obtenemos la empresa del usuario actual o buscamos en todas
         let endpoint;
         if (esAdminTotal) {
+          // El admin_total puede buscar el usuario en la lista global primero (más rápido)
           const resUsuarios = await api.get("/admin/usuarios")
           const encontrado = resUsuarios.data.find(
             (u) => String(u.codigo_usuario) === String(id)
@@ -47,6 +56,7 @@ export default function UsuarioForm() {
           // Si no lo encontramos en la lista global, buscamos por empresa
           endpoint = `/admin/empresas/${codigoEmpresa}/usuarios`
         } else {
+          // Un admin_empresa solo puede ver usuarios de su propia empresa
           endpoint = `/admin/empresas/${usuarioActual.codigo_empresa}/usuarios`
         }
 
@@ -67,6 +77,7 @@ export default function UsuarioForm() {
     }
 
     cargarUsuario()
+    // Desactivamos advertencia porque no queremos que se re-ejecute al cambiar codigoEmpresa
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
@@ -92,6 +103,7 @@ export default function UsuarioForm() {
     setError("")
 
     try {
+      // Separamos la contraseña del objeto base porque en edición no debe enviarse (el backend la ignoraría igual, pero evitamos exponerla en la request)
       const datos = {
         correo: correo.trim(),
         nombre: nombre.trim(),
@@ -102,6 +114,7 @@ export default function UsuarioForm() {
         datos.contrasena = contrasena
       }
 
+      // PUT es idempotente (actualiza un recurso existente), POST crea uno nuevo — usamos cada verbo HTTP según su semántica REST
       if (esEdicion) {
         await api.put(`/admin/usuarios/${id}`, datos)
       } else {
@@ -177,6 +190,7 @@ export default function UsuarioForm() {
           </select>
         </div>
 
+        {/* Solo el admin_total puede cambiar la empresa del usuario; un admin_empresa está limitado a su tenant por diseño */}
         {esAdminTotal && (
           <div className="form-campo">
             <label htmlFor="codigoEmpresa">Codigo de empresa</label>

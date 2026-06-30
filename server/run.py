@@ -8,7 +8,8 @@ from slowapi.middleware import SlowAPIMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api.v1.admin import router as admin_router
-from app.api.v1.auth import limiter, router as auth_router
+from app.api.v1.auth import router as auth_router
+from app.core.limiter import limiter
 from app.api.v1.empresa import router as empresa_router
 from app.api.v1.scrum import router as scrum_router
 from app.api.v1.tickets import router as tickets_router
@@ -17,12 +18,17 @@ from app.api.v1.fichajes import router as fichajes_router
 from app.api.v1.redireccion import router as redireccion_router
 from app.core.blocklist import cerrar as cerrar_blocklist
 from app.core.config import config
+from fastapi import APIRouter
 
 logger = logging.getLogger(__name__)
 
 
+SECRETOS_POR_DEFECTO = {"changeme", "root", "super-secret-key-change-in-production"}
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    if config.JWT_SECRET in SECRETOS_POR_DEFECTO or config.MYSQL_PASSWORD in SECRETOS_POR_DEFECTO:
+        logger.error("SECRETOS POR DEFECTO DETECTADOS — Cambia JWT_SECRET y MYSQL_PASSWORD en produccion")
     logger.info(f"Iniciando BYTEREDAPP API — entorno: {'produccion' if config.JWT_SECRET != 'changeme' else 'desarrollo'}")
     logger.info(f"Documentacion {'habilitada' if config.docs_url else 'deshabilitada'} (CORS: {config.CORS_ORIGINS})")
     yield
@@ -56,20 +62,25 @@ async def seguridad_headers_middleware(request, call_next):
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
-    response.headers["Content-Security-Policy"] = "default-src 'self'"
+    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'"
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
     return response
 
 
 app.add_middleware(BaseHTTPMiddleware, dispatch=seguridad_headers_middleware)
 
-app.include_router(auth_router)
-app.include_router(admin_router)
-app.include_router(empresa_router)
-app.include_router(scrum_router)
-app.include_router(tickets_router)
-app.include_router(documentos_router)
-app.include_router(fichajes_router)
+api_v1 = APIRouter(prefix="/api/v1")
+api_v1.include_router(auth_router)
+api_v1.include_router(admin_router)
+api_v1.include_router(empresa_router)
+api_v1.include_router(scrum_router)
+api_v1.include_router(tickets_router)
+api_v1.include_router(documentos_router)
+api_v1.include_router(fichajes_router)
+app.include_router(api_v1)
+
 app.include_router(redireccion_router)
 
 

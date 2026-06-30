@@ -8,6 +8,9 @@ class Fichaje(Base):
     __tablename__ = "fichajes"
 
     id_fichaje = Column(Integer, primary_key=True, autoincrement=True)
+    # Duplicamos codigo_empresa (redundancia controlada) para poder filtrar
+    # fichajes por empresa sin necesidad de hacer JOIN con usuario -> empresa.
+    # En un sistema multi-tenant esto evita una consulta extra por fila.
     codigo_empresa = Column(Integer, ForeignKey("empresa.codigo_empresa", ondelete="CASCADE"), nullable=False)
     codigo_usuario = Column(Integer, ForeignKey("usuario.codigo_usuario", ondelete="CASCADE"), nullable=False)
     hora_entrada = Column(DateTime, nullable=False)

@@ -1,3 +1,5 @@
+// Tests unitarios del contexto de notificaciones (ToastProvider)
+// Verificamos que los toasts aparecen y desaparecen automáticamente tras 4 segundos
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import { ToastProvider, useToast } from '../ToastContext'
 
@@ -11,6 +13,7 @@ describe('ToastContext', () => {
   afterEach(() => { vi.useRealTimers() })
 
   it('shows and hides toast', () => {
+    // Al pulsar el botón aparece el toast; tras 4 segundos debe desaparecer automáticamente
     render(<ToastProvider><TestComponent /></ToastProvider>)
     fireEvent.click(screen.getByText('Mostrar'))
     expect(screen.getByText('Mensaje de error')).toBeInTheDocument()

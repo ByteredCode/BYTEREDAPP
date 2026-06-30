@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db, get_tenant_filter
+from app.schemas.admin import Paginacion
 from app.schemas.tarea import (
     SprintCreate,
     SprintResponse,
@@ -35,7 +36,8 @@ async def get_tablero(
     db: AsyncSession = Depends(get_db),
     codigo_empresa: int = Depends(get_tenant_filter),
 ):
-    # get_tenant_filter inyecta automaticamente el company_id del JWT
+    # get_tenant_filter extrae el company_id del JWT y lo inyecta automaticamente,
+    # asi cada query queda aislada por empresa sin que el endpoint tenga que hacerlo manualmente
     return await obtener_tablero(db, codigo_empresa, codigo_sprint)
 
 
@@ -45,6 +47,8 @@ async def get_tareas(
     db: AsyncSession = Depends(get_db),
     codigo_empresa: int = Depends(get_tenant_filter),
 ):
+    # El parametro opcional codigo_sprint permite filtrar tareas por sprint,
+    # util para el tablero kanban que muestra solo las tareas del sprint activo
     return await listar_tareas(db, codigo_empresa, codigo_sprint)
 
 
@@ -83,7 +87,10 @@ async def put_mover_tarea(
     db: AsyncSession = Depends(get_db),
     codigo_empresa: int = Depends(get_tenant_filter),
 ):
-    # Endpoint especifico para drag & drop: solo cambia columna y orden
+    # Endpoint exclusivo para drag & drop: separamos el reordenamiento de una
+    # actualizacion normal para evitar que el frontend envie datos innecesarios.
+    # El servidor recalcula el orden (posicion) entre las tareas vecinas para
+    # evitar conflictos de concurrencia al arrastrar.
     return await mover_tarea(db, codigo_tarea, data.columna, data.orden, codigo_empresa)
 
 
@@ -96,12 +103,14 @@ async def delete_tarea(
     await eliminar_tarea(db, codigo_tarea, codigo_empresa)
 
 
-@router.get("/sprints", response_model=list[SprintResponse])
+@router.get("/sprints")
 async def get_sprints(
     db: AsyncSession = Depends(get_db),
     codigo_empresa: int = Depends(get_tenant_filter),
+    pag: Paginacion = Depends(),
 ):
-    return await listar_sprints(db, codigo_empresa)
+    items, total = await listar_sprints(db, codigo_empresa, pag.skip, pag.limit)
+    return {"items": items, "total": total}
 
 
 @router.post("/sprints", response_model=SprintResponse, status_code=201)
@@ -110,6 +119,8 @@ async def post_sprint(
     db: AsyncSession = Depends(get_db),
     codigo_empresa: int = Depends(get_tenant_filter),
 ):
+    # El tenant se inyecta automaticamente, asi el sprint se asocia a la empresa
+    # del usuario autenticado sin que el frontend tenga que enviar el company_id
     return await crear_sprint(db, data, codigo_empresa)
 
 

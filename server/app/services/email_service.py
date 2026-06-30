@@ -13,6 +13,8 @@ async def enviar_correo(destinatario: str, asunto: str, cuerpo: str) -> bool:
         logger.warning("SMTP no configurado, correo no enviado")
         return False
 
+    # Usamos smtplib (sincrono) porque el envio de email es ocasional y fire-and-forget;
+    # una libreria async anadaria complejidad y dependencias extra sin beneficio real
     try:
         msg = MIMEText(cuerpo, "plain", "utf-8")
         msg["Subject"] = asunto
@@ -27,6 +29,7 @@ async def enviar_correo(destinatario: str, asunto: str, cuerpo: str) -> bool:
         logger.info(f"Correo enviado a {destinatario}")
         return True
     except Exception as e:
-        # Nunca propagar excepcion de email al usuario
+        # Engullimos la excepcion a proposito: el email es un efecto secundario,
+        # no debe impedir que el usuario complete su accion ni mostrar trazas internas
         logger.error(f"Error al enviar correo: {e}")
         return False

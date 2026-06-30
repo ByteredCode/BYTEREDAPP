@@ -1,3 +1,5 @@
+// Tests unitarios de la página de inicio de sesión (Login)
+// Verificamos renderizado de campos, flujo de login exitoso y manejo de errores
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { BrowserRouter } from 'react-router-dom'
 import { AuthContext } from '../../context/AuthContext'
@@ -29,6 +31,7 @@ describe('Login', () => {
   beforeEach(() => { vi.clearAllMocks() })
 
   it('renders email and password inputs', () => {
+    // El formulario debe mostrar los campos de correo, contraseña y el botón de Entrar
     renderLogin()
     expect(screen.getByPlaceholderText('Correo electrónico')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Contraseña')).toBeInTheDocument()
@@ -36,6 +39,7 @@ describe('Login', () => {
   })
 
   it('submit button calls login function', async () => {
+    // Al completar el formulario y enviar, se debe invocar la función login del contexto
     mockLogin.mockResolvedValueOnce({ nombre: 'Juan' })
     renderLogin()
     fireEvent.change(screen.getByPlaceholderText('Correo electrónico'), { target: { value: 'a@a.com' } })
@@ -47,6 +51,7 @@ describe('Login', () => {
   })
 
   it('shows error on failed login', async () => {
+    // Si el login falla, debe mostrarse un mensaje de error en la interfaz
     mockLogin.mockRejectedValueOnce(new Error('Error'))
     renderLogin()
     fireEvent.change(screen.getByPlaceholderText('Correo electrónico'), { target: { value: 'a@a.com' } })
@@ -58,6 +63,7 @@ describe('Login', () => {
   })
 
   it('redirects to dashboard on success', async () => {
+    // Tras un login exitoso, se debe redirigir al dashboard
     mockLogin.mockResolvedValueOnce({ nombre: 'Juan' })
     renderLogin()
     fireEvent.change(screen.getByPlaceholderText('Correo electrónico'), { target: { value: 'a@a.com' } })

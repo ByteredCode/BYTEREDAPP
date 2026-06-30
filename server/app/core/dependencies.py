@@ -8,6 +8,8 @@ from app.core.security import decodificar_token
 from app.models.usuario import Usuario
 
 # HTTPBearer extrae el token del header "Authorization: Bearer <token>"
+# auto_error=False: no lanza error 403 automaticamente si falta el token
+# Preferimos manejarlo manualmente para dar mensajes personalizados en espanol
 seguridad = HTTPBearer(auto_error=False)
 
 
@@ -43,5 +45,7 @@ async def get_usuario_actual(
 
 # Dependencia que extrae el company_id del usuario autenticado
 # Se usa en endpoints para filtrar datos por empresa (multi-tenant)
+# El middleware de tenant se aplica a nivel de query, no a nivel de conexion:
+# asi un mismo pool de conexiones sirve a todas las empresas sin riesgo de mezclar datos
 def get_tenant_filter(usuario: Usuario = Depends(get_usuario_actual)) -> int:
     return usuario.codigo_empresa

@@ -1,7 +1,9 @@
+# Tests de integración para el módulo de redirección (/r/<codigo_empresa>)
 from app.models.empresa import Empresa
 
 
 async def test_redireccion_exito(client, test_session):
+    # Una empresa con web configurada debe redirigir (307) a esa URL
     empresa = Empresa(nombre="Test", web="https://example.com")
     test_session.add(empresa)
     await test_session.flush()
@@ -13,6 +15,7 @@ async def test_redireccion_exito(client, test_session):
 
 
 async def test_redireccion_empresa_sin_web(client, test_session):
+    # Una empresa sin web configurada debe devolver 404 (no hay URL a la que redirigir)
     empresa = Empresa(nombre="Test Sin Web")
     test_session.add(empresa)
     await test_session.flush()
@@ -23,12 +26,14 @@ async def test_redireccion_empresa_sin_web(client, test_session):
 
 
 async def test_redireccion_empresa_inexistente(client):
+    # Un código de empresa que no existe debe devolver 404
     resp = await client.get("/r/99999")
 
     assert resp.status_code == 404
 
 
 async def test_redireccion_url_no_https(client, test_session):
+    # Solo se permiten URLs HTTPS (seguridad); protocolos no seguros deben ser rechazados
     empresa = Empresa(nombre="Test Malicious", web="ftp://malicious.com")
     test_session.add(empresa)
     await test_session.flush()

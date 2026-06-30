@@ -1,25 +1,35 @@
 import { useState, useEffect, useCallback } from "react"
 import api from "../../api/axios"
 import { useToast } from "../../context/ToastContext"
+import LoadingSpinner from "../../components/common/LoadingSpinner"
+import Pagination from "../../components/common/Pagination"
 
+// Los sprints solo transitan entre estos tres estados;
+// el backend valida que no se asignen valores fuera de este conjunto
 const ESTADOS = ["Planificado", "Activo", "Completado"]
 
-// CRUD de sprints con modal de formulario
+// CRUD completo de sprints con modal de formulario y confirmación de borrado
 export default function Sprints() {
   const { showToast } = useToast()
   const [sprints, setSprints] = useState([])
   const [mostrarForm, setMostrarForm] = useState(false)
   const [editando, setEditando] = useState(null)
+  const [cargando, setCargando] = useState(true)
+  const [pagina, setPagina] = useState(1)
+  const [totalPaginas, setTotalPaginas] = useState(1)
   const [form, setForm] = useState({ nombre: "", objetivo: "", fecha_inicio: "", fecha_fin: "", estado: "Planificado" })
 
   const fetchSprints = useCallback(async () => {
+    setCargando(true)
     try {
-      const res = await api.get("/scrum/sprints")
-      setSprints(res.data)
+      const res = await api.get("/scrum/sprints", { params: { skip: (pagina - 1) * 50, limit: 50 } })
+      setSprints(res.data.items)
+      setTotalPaginas(Math.ceil(res.data.total / 50) || 1)
     } catch {
-      // ignore
+    } finally {
+      setCargando(false)
     }
-  }, [])
+  }, [pagina])
 
   useEffect(() => { fetchSprints() }, [fetchSprints])
 
@@ -45,7 +55,8 @@ export default function Sprints() {
     e.preventDefault()
     try {
       const payload = { ...form }
-      // Convertir cadenas vacias a null para el backend
+      // El backend espera null explícito para campos opcionales vacíos;
+      // si enviamos string vacío, la BD almacenaría '' en lugar de NULL
       if (!payload.fecha_inicio) payload.fecha_inicio = null
       if (!payload.fecha_fin) payload.fecha_fin = null
       if (!payload.objetivo) payload.objetivo = null
@@ -62,6 +73,8 @@ export default function Sprints() {
     }
   }
 
+  // Usamos confirm() del navegador para evitar borrados accidentales;
+  // es una alternativa ligera sin necesidad de un modal de confirmación personalizado
   async function eliminar(id) {
     if (!confirm("¿Eliminar sprint?")) return
     try {
@@ -72,6 +85,8 @@ export default function Sprints() {
     }
   }
 
+  if (cargando) return <LoadingSpinner mensaje="Cargando sprints..." />
+
   return (
     <div className="scrum-sprints">
       <div className="sprints-header">
@@ -80,6 +95,8 @@ export default function Sprints() {
       </div>
 
       {mostrarForm && (
+        // El overlay cierra el modal al hacer click fuera;
+        // stopPropagation en el modal evita que el click dentro cierre el modal accidentalmente
         <div className="modal-overlay" onClick={() => setMostrarForm(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h3>{editando ? "Editar sprint" : "Nuevo sprint"}</h3>
@@ -128,7 +145,7 @@ export default function Sprints() {
                 {s.fecha_inicio && <span>Inicio: {s.fecha_inicio}</span>}
                 {s.fecha_fin && <span>Fin: {s.fecha_fin}</span>}
               </div>
-              <span className={`sprint-estado estado-${s.estado?.toLowerCase()}`}>{s.estado}</span>
+              <span className={`sprint-estado sprint-estado-${s.estado?.toLowerCase()}`}>{s.estado}</span>
             </div>
             <div className="sprint-acciones">
               <button className="btn-secondary" onClick={() => abrirEditar(s)}>Editar</button>
@@ -137,6 +154,7 @@ export default function Sprints() {
           </div>
         ))}
       </div>
+      <Pagination pagina={pagina} totalPaginas={totalPaginas} onPaginaChange={setPagina} />
     </div>
   )
 }

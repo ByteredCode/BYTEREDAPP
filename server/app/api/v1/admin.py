@@ -9,6 +9,7 @@ from app.schemas.admin import (
     EmpresaCreate,
     EmpresaResponse,
     EmpresaUpdate,
+    Paginacion,
     ServicioResponse,
     ServicioToggle,
     UsuarioAdminResponse,
@@ -23,8 +24,9 @@ router = APIRouter(prefix="/admin", tags=["Admin"])
 # ────────────────────────────── EMPRESAS ──────────────────────────────
 
 
-@router.get("/empresas", response_model=list[EmpresaResponse])
+@router.get("/empresas")
 async def listar_empresas(
+    pag: Paginacion = Depends(),
     usuario: Usuario = Depends(get_usuario_actual),
     db: AsyncSession = Depends(get_db),
 ):
@@ -33,7 +35,8 @@ async def listar_empresas(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tienes permisos para listar empresas",
         )
-    return await admin_service.listar_empresas(db)
+    items, total = await admin_service.listar_empresas(db, pag.skip, pag.limit)
+    return {"items": items, "total": total}
 
 
 @router.post("/empresas", response_model=EmpresaResponse, status_code=status.HTTP_201_CREATED)
@@ -56,6 +59,8 @@ async def obtener_empresa(
     usuario: Usuario = Depends(get_usuario_actual),
     db: AsyncSession = Depends(get_db),
 ):
+    # La funcion _verificar_acceso_empresa centraliza la logica de permisos:
+    # admin_total ve todo, admin_empresa solo su propia empresa
     _verificar_acceso_empresa(usuario, codigo_empresa)
     empresa = await admin_service.obtener_empresa(db, codigo_empresa)
     if not empresa:
@@ -98,24 +103,29 @@ async def eliminar_empresa(
 # ────────────────────────────── USUARIOS ──────────────────────────────
 
 
-@router.get("/empresas/{codigo_empresa}/usuarios", response_model=list[UsuarioAdminResponse])
+@router.get("/empresas/{codigo_empresa}/usuarios")
 async def listar_usuarios_por_empresa(
     codigo_empresa: int,
+    pag: Paginacion = Depends(),
     usuario: Usuario = Depends(get_usuario_actual),
     db: AsyncSession = Depends(get_db),
 ):
     _verificar_acceso_empresa(usuario, codigo_empresa)
-    return await admin_service.listar_usuarios(db, codigo_empresa=codigo_empresa)
+    items, total = await admin_service.listar_usuarios(db, codigo_empresa=codigo_empresa, skip=pag.skip, limit=pag.limit)
+    return {"items": items, "total": total}
 
 
-@router.get("/usuarios", response_model=list[UsuarioAdminResponse])
+@router.get("/usuarios")
 async def listar_usuarios(
+    pag: Paginacion = Depends(),
     usuario: Usuario = Depends(get_usuario_actual),
     db: AsyncSession = Depends(get_db),
 ):
     if usuario.rol == "admin_total":
-        return await admin_service.listar_usuarios(db)
-    return await admin_service.listar_usuarios(db, codigo_empresa=usuario.codigo_empresa)
+        items, total = await admin_service.listar_usuarios(db, skip=pag.skip, limit=pag.limit)
+    else:
+        items, total = await admin_service.listar_usuarios(db, codigo_empresa=usuario.codigo_empresa, skip=pag.skip, limit=pag.limit)
+    return {"items": items, "total": total}
 
 
 @router.post("/usuarios", response_model=UsuarioAdminResponse, status_code=status.HTTP_201_CREATED)
@@ -124,6 +134,8 @@ async def crear_usuario(
     usuario: Usuario = Depends(get_usuario_actual),
     db: AsyncSession = Depends(get_db),
 ):
+    # admin_total puede crear usuarios en cualquier empresa;
+    # admin_empresa solo en la suya propia, y ademas se verifica que el body coincida
     if usuario.rol == "admin_total":
         return await admin_service.crear_usuario_admin(db, body)
     if usuario.rol == "admin_empresa" and body.codigo_empresa == usuario.codigo_empresa:
@@ -141,12 +153,15 @@ async def actualizar_usuario(
     usuario: Usuario = Depends(get_usuario_actual),
     db: AsyncSession = Depends(get_db),
 ):
+    # Primero obtenemos el usuario a modificar para validar que existe y saber su empresa
     usuario_modificar = await admin_service.obtener_usuario_por_id(db, codigo_usuario)
     if not usuario_modificar:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Usuario no encontrado",
         )
+    # Jerarquia de permisos: admin_total puede modificar cualquier usuario;
+    # admin_empresa solo si pertenece a su misma empresa
     if usuario.rol == "admin_total":
         return await admin_service.actualizar_usuario(db, codigo_usuario, body)
     if usuario.rol == "admin_empresa" and usuario_modificar.codigo_empresa == usuario.codigo_empresa:
@@ -163,6 +178,7 @@ async def eliminar_usuario(
     usuario: Usuario = Depends(get_usuario_actual),
     db: AsyncSession = Depends(get_db),
 ):
+    # Misma logica que actualizar: primero comprobamos que el usuario existe y a que empresa pertenece
     usuario_eliminar = await admin_service.obtener_usuario_por_id(db, codigo_usuario)
     if not usuario_eliminar:
         raise HTTPException(
@@ -213,10 +229,13 @@ async def toggle_servicio(
 
 
 @router.get("/stats", response_model=AdminStatsResponse)
+# Endpoint independiente para estadisticas: se separa de los CRUD para no acoplar
+# consultas pesadas de agregacion con operaciones de escritura de datos
 async def obtener_stats(
     usuario: Usuario = Depends(get_usuario_actual),
     db: AsyncSession = Depends(get_db),
 ):
+    # admin_total ve estadisticas globales; admin_empresa solo las de su empresa
     codigo_empresa = None if usuario.rol == "admin_total" else usuario.codigo_empresa
     return await admin_service.obtener_stats(db, codigo_empresa)
 
@@ -225,7 +244,8 @@ async def obtener_stats(
 
 
 def _verificar_acceso_empresa(usuario: Usuario, codigo_empresa: int) -> None:
-    # Admin total accede a todo; admin_empresa solo a su propia empresa
+    # Funcion utilitaria que abstrae la comprobacion de permisos por empresa.
+    # Asi evitamos repetir el mismo if/raise en todos los endpoints que operan sobre una empresa.
     if usuario.rol == "admin_total":
         return
     if usuario.rol == "admin_empresa" and usuario.codigo_empresa == codigo_empresa:

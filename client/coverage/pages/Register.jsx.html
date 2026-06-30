@@ -141,7 +141,29 @@
 <a name='L76'></a><a href='#L76'>76</a>
 <a name='L77'></a><a href='#L77'>77</a>
 <a name='L78'></a><a href='#L78'>78</a>
-<a name='L79'></a><a href='#L79'>79</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a>
+<a name='L87'></a><a href='#L87'>87</a>
+<a name='L88'></a><a href='#L88'>88</a>
+<a name='L89'></a><a href='#L89'>89</a>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -152,11 +174,17 @@
 <span class="cline-any cline-yes">14x</span>
 <span class="cline-any cline-yes">14x</span>
 <span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">14x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -164,6 +192,10 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -206,7 +238,11 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -221,9 +257,13 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
+// Se usa axios directamente en lugar del contexto de auth porque el registro
+// es la única operación que no requiere JWT (el usuario aún no existe en sesión).
 import api from "../api/axios"
 &nbsp;
 export default function Register() {
+  // Cada campo tiene su propio estado para poder validarlos por separado
+  // y porque no dependen entre sí (no hay lógica cruzada entre ellos).
   const [correo, setCorreo] = useState("")
   const [contrasena, setContrasena] = useState("")
   const [nombre, setNombre] = useState("")
@@ -231,17 +271,27 @@ export default function Register() {
   const [error, setError] = useState("")
   const navigate = useNavigate()
 &nbsp;
+  // Separar cada campo en su propio estado permite validarlos individualmente
+  // y evita re-renderizados innecesarios del resto del formulario al escribir.
   const handleSubmit = async (e) =&gt; {
     e.preventDefault()
     try {
+      // Se convierte codigoEmpresa a Number porque viene como string desde el input type="number".
+      // El backend espera un entero para asociar al usuario con la empresa correcta (multi-tenant).
       await api.post("/auth/register", {
         correo,
         contrasena,
         nombre,
         codigo_empresa: Number(codigoEmpresa),
       })
+      // Tras un registro exitoso se redirige al login en lugar de loguear directamente,
+      // forzando al usuario a identificarse con sus nuevas credenciales.
 <span class="cstat-no" title="statement not covered" >      navigate("/login")</span>
     } catch (err) {
+      // Se muestra el mensaje de error que devuelve el backend (detail) o uno genérico
+      // si no hay respuesta del servidor (ej. timeout, red caída).
+      // Se encadena con || para tener un mensaje por defecto si el backend no responde
+      // (ej. red caída, timeout), evitando que el usuario vea un error técnico crudo.
       setError(err.response?.data?.detail || <span class="branch-1 cbranch-no" title="branch not covered" >"Error al registrarse")</span>
     }
   }
@@ -280,6 +330,8 @@ export default function Register() {
             /&gt;
           &lt;/div&gt;
           &lt;div className="campo"&gt;
+            {/* El código de empresa se pide como número porque es un identificador
+                numérico en la BD que vincula al usuario con su tenant (multi-tenant). */}
             &lt;input
               type="number"
               placeholder="Código de empresa"
@@ -291,6 +343,8 @@ export default function Register() {
           &lt;button type="submit" className="btn btn-primary"&gt;Registrarse&lt;/button&gt;
         &lt;/form&gt;
         &lt;div className="auth-link"&gt;
+          {/* Link de React Router en vez de &lt;a&gt; para evitar recarga completa;
+              así se preserva el estado de la app y la experiencia es más fluida. */}
           ¿Ya tienes cuenta? &lt;Link to="/login"&gt;Iniciar sesión&lt;/Link&gt;
         &lt;/div&gt;
       &lt;/div&gt;
@@ -304,7 +358,7 @@ export default function Register() {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-06-29T14:56:02.180Z
+                at 2026-06-30T10:01:55.642Z
             </div>
         <script src="../prettify.js"></script>
         <script>

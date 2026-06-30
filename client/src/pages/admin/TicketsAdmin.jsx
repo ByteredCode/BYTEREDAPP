@@ -1,8 +1,13 @@
 import { useState, useEffect, useCallback } from "react"
 import api from "../../api/axios"
 import { useToast } from "../../context/ToastContext"
+import LoadingSpinner from "../../components/common/LoadingSpinner"
+import Pagination from "../../components/common/Pagination"
 
+// El ciclo de vida del ticket sigue un orden lógico (Pendiente → Leido → Respondido → Cerrado);
+// esta constante centraliza los estados válidos para que coincidan frontend y backend
 const ESTADOS = ["Pendiente", "Leido", "Respondido", "Cerrado"]
+// Mapeo directo de nivel de importancia a clase CSS; al ser un objeto fuera del componente evitamos recrearlo en cada render
 const IMPORTANCIA_CLASE = { Baja: "prioridad-baja", Media: "prioridad-media", Alta: "prioridad-alta", Critica: "prioridad-critica" }
 
 export default function TicketsAdmin() {
@@ -10,18 +15,27 @@ export default function TicketsAdmin() {
   const [tickets, setTickets] = useState([])
   const [detalle, setDetalle] = useState(null)
   const [respuesta, setRespuesta] = useState("")
+  const [cargando, setCargando] = useState(true)
+  const [pagina, setPagina] = useState(1)
+  const [totalPaginas, setTotalPaginas] = useState(1)
 
   const fetchTickets = useCallback(async () => {
+    setCargando(true)
     try {
-      const res = await api.get("/tickets")
-      setTickets(res.data)
+      const res = await api.get("/tickets", { params: { skip: (pagina - 1) * 50, limit: 50 } })
+      setTickets(res.data.items)
+      setTotalPaginas(Math.ceil(res.data.total / 50) || 1)
     } catch {
-      // ignore
+    } finally {
+      setCargando(false)
     }
-  }, [])
+  }, [pagina])
 
+  // El efecto depende de fetchTickets (que es estable por useCallback), así que solo se ejecuta al montar el componente
   useEffect(() => { fetchTickets() }, [fetchTickets])
 
+  // Enviamos estado y respuesta en un solo PUT para que el backend haga una transacción atómica;
+  // si el admin escribe una respuesta, el estado pasa automáticamente a "Respondido" en el backend
   async function cambiarEstado(id, estado) {
     try {
       const body = { estado }
@@ -34,10 +48,14 @@ export default function TicketsAdmin() {
     }
   }
 
+  // Al abrir un ticket guardamos el objeto completo en detalle para usarlo como "tienda local" del modal,
+  // y reseteamos la respuesta para que el textarea empiece limpio
   function abrirDetalle(t) {
     setDetalle(t)
     setRespuesta("")
   }
+
+  if (cargando) return <LoadingSpinner mensaje="Cargando tickets..." />
 
   return (
     <div className="pagina-admin">
@@ -45,7 +63,9 @@ export default function TicketsAdmin() {
         <h1>Tickets de soporte</h1>
       </div>
 
+      {/* El modal se muestra condicionalmente: si detalle es null no existe en el DOM, evitando problemas de tabulación y accesibilidad */}
       {detalle && (
+        // El overlay oscuro cierra el modal al hacer clic fuera (UX estándar); stopPropagation en el modal evita que el clic interno cierre
         <div className="modal-overlay" onClick={() => setDetalle(null)}>
           <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
             <h3>Ticket #{detalle.id_reporte}</h3>
@@ -87,6 +107,7 @@ export default function TicketsAdmin() {
                   onChange={(e) => {
                     const nuevoEstado = e.target.value
                     cambiarEstado(detalle.id_reporte, nuevoEstado)
+                    // Optimistic update: actualizamos el estado local del modal inmediatamente sin esperar la respuesta del servidor
                     setDetalle({ ...detalle, estado: nuevoEstado })
                   }}
                 >
@@ -134,6 +155,7 @@ export default function TicketsAdmin() {
           </tr>
         </thead>
         <tbody>
+          {/* colSpan="7" porque la tabla tiene 7 columnas; así el mensaje ocupa todo el ancho en vez de aparecer en una sola celda */}
           {tickets.length === 0 && (
             <tr><td colSpan="7" className="sin-datos">No hay tickets</td></tr>
           )}
@@ -152,6 +174,7 @@ export default function TicketsAdmin() {
           ))}
         </tbody>
       </table>
+      <Pagination pagina={pagina} totalPaginas={totalPaginas} onPaginaChange={setPagina} />
     </div>
   )
 }

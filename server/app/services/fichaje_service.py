@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.fichaje import Fichaje
@@ -39,14 +39,16 @@ async def registrar_salida(db: AsyncSession, codigo_usuario: int, codigo_empresa
     return fichaje
 
 
-async def listar_fichajes(db: AsyncSession, codigo_usuario: int, codigo_empresa: int) -> list[Fichaje]:
+async def listar_fichajes(db: AsyncSession, codigo_usuario: int, codigo_empresa: int, skip: int = 0, limit: int = 50) -> tuple[list[Fichaje], int]:
+    where = [
+        Fichaje.codigo_usuario == codigo_usuario,
+        Fichaje.codigo_empresa == codigo_empresa,
+    ]
+    total = (await db.execute(select(func.count(Fichaje.id_fichaje)).where(*where))).scalar()
     resultado = await db.execute(
-        select(Fichaje).where(
-            Fichaje.codigo_usuario == codigo_usuario,
-            Fichaje.codigo_empresa == codigo_empresa,
-        ).order_by(Fichaje.hora_entrada.desc())
+        select(Fichaje).where(*where).order_by(Fichaje.hora_entrada.desc()).offset(skip).limit(limit)
     )
-    return resultado.scalars().all()
+    return resultado.scalars().all(), total
 
 
 async def fichaje_abierto(db: AsyncSession, codigo_usuario: int, codigo_empresa: int) -> Fichaje | None:
@@ -61,6 +63,8 @@ async def fichaje_abierto(db: AsyncSession, codigo_usuario: int, codigo_empresa:
     return resultado.scalar_one_or_none()
 
 
+# Filtra fichajes completados (con salida) dentro de un rango de fecha y suma las horas.
+# Solo se cuentan fichajes cerrados para no contabilizar fichajes aun en curso.
 def _calcular_horas(fichajes: list[Fichaje], desde: datetime) -> float:
     total = 0.0
     for f in fichajes:
@@ -79,8 +83,11 @@ async def obtener_resumen(db: AsyncSession, codigo_usuario: int, codigo_empresa:
     )
     todos = resultado.scalars().all()
     ahora = datetime.now()
+    # Calendario: hoy desde las 00:00:00
     inicio_hoy = ahora.replace(hour=0, minute=0, second=0, microsecond=0)
+    # La semana empieza el lunes (weekday() devuelve 0 para lunes)
     inicio_semana = inicio_hoy - timedelta(days=ahora.weekday())
+    # El mes empieza el dia 1 a las 00:00:00
     inicio_mes = inicio_hoy.replace(day=1)
 
     return FichajeResumenResponse(

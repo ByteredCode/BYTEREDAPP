@@ -7,19 +7,36 @@ on:
       - 'client/**'
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
         with:
-          node-version: 20
-          cache: 'pnpm'
+          version: 10
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "pnpm"
           cache-dependency-path: client/pnpm-lock.yaml
-      - run: pnpm install
+
+      - name: Install dependencies
         working-directory: ./client
-      - run: pnpm build
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
         working-directory: ./client
-      - name: Deploy a Hostinger
-        run: echo "Configurar deploy a Hostinger aquí"
+        run: pnpm build
+
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./client/dist/
+          server-dir: ${{ secrets.FTP_TARGET_DIR }}/

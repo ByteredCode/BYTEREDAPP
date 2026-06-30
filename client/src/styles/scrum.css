@@ -1,0 +1,93 @@
+.scrum-layout { display: flex; flex-direction: column; min-height: calc(100vh - var(--nav-height)); }
+.scrum-board { padding: 0; }
+.scrum-nav {
+  display: flex; gap: 0.25rem; padding: 0.75rem 2rem;
+  background: var(--bg-card); border-bottom: 1px solid var(--border);
+}
+.scrum-nav a {
+  text-decoration: none; padding: 0.5rem 1rem;
+  border-radius: var(--radius); font-weight: 500; font-size: 0.9rem;
+  color: var(--text-secondary); transition: background 0.2s, color 0.2s;
+}
+.scrum-nav a:hover { background: var(--bg); text-decoration: none; }
+.scrum-nav a.activo { background: var(--primary); color: #fff; }
+.scrum-content { flex: 1; padding: 1.5rem 2rem; }
+
+.board-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.75rem; }
+.board-header h2 { margin: 0; font-size: 1.35rem; }
+.board-filtros select {
+  padding: 0.5rem 0.75rem; border: 1px solid var(--border);
+  border-radius: var(--radius); font-size: 0.9rem; background: var(--bg-card);
+}
+
+.kanban-board {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  min-height: 500px;
+}
+.kanban-columna {
+  background: var(--bg);
+  border-radius: var(--radius-lg);
+  padding: 0.75rem;
+  display: flex; flex-direction: column;
+  border: 1px solid var(--border-light);
+}
+.kanban-columna-header {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.5rem 0.5rem 0.75rem;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 0.75rem;
+}
+.kanban-columna-header h3 { margin: 0; font-size: 0.9rem; font-weight: 600; flex: 1; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); }
+.kanban-count { background: var(--border); color: var(--text-muted); font-size: 0.7rem; border-radius: 12px; padding: 0.15rem 0.5rem; font-weight: 600; }
+.btn-add-tarea {
+  background: none; border: 1px dashed var(--border);
+  border-radius: 50%; width: 26px; height: 26px;
+  font-size: 1.1rem; cursor: pointer; color: var(--text-muted);
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+.btn-add-tarea:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+.kanban-columna-body { flex: 1; display: flex; flex-direction: column; gap: 0.5rem; padding: 0.25rem 0; }
+
+.kanban-card {
+  background: var(--bg-card); border-radius: var(--radius);
+  padding: 0.75rem; box-shadow: var(--shadow-sm);
+  cursor: grab; transition: box-shadow 0.2s, transform 0.15s;
+  user-select: none; border: 1px solid var(--border-light);
+}
+.kanban-card:hover { box-shadow: var(--shadow-md); }
+.kanban-card:active { cursor: grabbing; }
+.kanban-card-drag { box-shadow: var(--shadow-lg); transform: rotate(2deg) scale(1.02); }
+.kanban-card-titulo { font-size: 0.875rem; font-weight: 500; margin-bottom: 0.4rem; }
+.kanban-card-meta { display: flex; gap: 0.35rem; flex-wrap: wrap; align-items: center; }
+.prioridad-badge { font-size: 0.65rem; padding: 0.15rem 0.45rem; border-radius: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; }
+.prioridad-baja { background: #e8f5e9; color: #2e7d32; }
+.prioridad-media { background: #fff3e0; color: #e65100; }
+.prioridad-alta { background: #fce4ec; color: #c62828; }
+.prioridad-critica { background: #fce4ec; color: #b71c1c; }
+.fecha-limite { font-size: 0.7rem; color: var(--text-muted); }
+.kanban-card-asignacion { font-size: 0.7rem; color: var(--primary); margin-top: 0.25rem; }
+
+.scrum-sprints { max-width: 900px; }
+.sprints-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+.sprints-header h2 { margin: 0; font-size: 1.35rem; }
+
+.sprints-lista { display: flex; flex-direction: column; gap: 0.75rem; }
+.sprint-card {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  background: var(--bg-card); padding: 1.25rem;
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);
+  gap: 1rem; border: 1px solid var(--border-light);
+  transition: box-shadow 0.2s;
+}
+.sprint-card:hover { box-shadow: var(--shadow-md); }
+.sprint-info h4 { margin: 0 0 0.35rem; font-size: 1.05rem; }
+.sprint-info p { margin: 0 0 0.5rem; color: var(--text-secondary); font-size: 0.9rem; }
+.sprint-fechas { display: flex; gap: 1rem; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem; }
+.sprint-estado { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 0.2rem 0.55rem; border-radius: 4px; letter-spacing: 0.3px; }
+.sprint-estado-planificado { background: #e3f2fd; color: #1565c0; }
+.sprint-estado-activo { background: #e8f5e9; color: #2e7d32; }
+.sprint-estado-completado { background: #f3e5f5; color: #6a1b9a; }
+.sprint-acciones { display: flex; gap: 0.4rem; flex-shrink: 0; }

@@ -2,10 +2,10 @@ services:
   db:
     image: mysql:8.0
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: byteredapp
-    ports:
-      - "3306:3306"
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-root}
+      MYSQL_DATABASE: gestion_empresas
+    expose:
+      - "3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -14,20 +14,10 @@ services:
       timeout: 5s
       retries: 5
 
-  db-test:
-    image: mysql:8.0
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: byteredapp_test
-    ports:
-      - "3307:3306"
-    tmpfs:
-      - /var/lib/mysql
-
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
+    expose:
+      - "6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -43,11 +33,11 @@ services:
       MYSQL_HOST: db
       MYSQL_PORT: 3306
       MYSQL_USER: root
-      MYSQL_PASSWORD: root
-      MYSQL_DATABASE: byteredapp
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-root}
+      MYSQL_DATABASE: gestion_empresas
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      JWT_SECRET: ${JWT_SECRET:-super-secret-key-change-in-production}
+      JWT_SECRET: ${JWT_SECRET:-changeme}
       JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-60}
       JWT_REFRESH_TOKEN_EXPIRE_DAYS: ${JWT_REFRESH_TOKEN_EXPIRE_DAYS:-7}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost}

@@ -97,24 +97,45 @@
 <a name='L32'></a><a href='#L32'>32</a>
 <a name='L33'></a><a href='#L33'>33</a>
 <a name='L34'></a><a href='#L34'>34</a>
-<a name='L35'></a><a href='#L35'>35</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">8x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">8x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">45x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">45x</span>
+<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">10x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">10x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">10x</span>
+<span class="cline-any cline-yes">45x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -129,20 +150,26 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">16x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">95x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { createContext, useCallback, useContext, useState } from "react"
+// useCallback evita que showToast se re-cree en cada render, previniendo re-renderizados innecesarios de los hijos
 &nbsp;
+// Iniciamos con null en vez de un objeto vacio para que useToast lance error si alguien lo usa fuera del Provider
 const ToastContext = createContext(null)
 &nbsp;
+// Variable fuera del estado de React: necesitamos IDs secuenciales unicos que persistan entre renders sin causar re-renderizados
 let toastId = 0
 &nbsp;
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([])
 &nbsp;
+  // Pasamos el updater funcional a setToasts (prev =&gt; ...) para evitar depender del estado actual y posibles closures obsoletos
   const showToast = useCallback((mensaje, tipo = "error") =&gt; {
     const id = ++toastId
     setToasts((prev) =&gt; [...prev, { id, mensaje, tipo }])
+    // Eliminamos la notificacion tras 4 segundos para que no se acumulen en pantalla
     setTimeout(() =&gt; {
       setToasts((prev) =&gt; prev.filter((t) =&gt; t.id !== id))
     }, 4000)
@@ -151,8 +178,13 @@ export function ToastProvider({ children }) {
   return (
     &lt;ToastContext.Provider value={{ showToast }}&gt;
       {children}
+      {/*
+        Renderizamos el contenedor de toasts DENTRO del Provider para que los estilos
+        y la posicion fija esten disponibles globalmente sin tener que montarlo en cada pagina
+      */}
       &lt;div className="toast-container"&gt;
         {toasts.map((t) =&gt; (
+          // La key unica (id) evita que React confunda notificaciones al reordenarse o eliminarse
           &lt;div key={t.id} className={`toast toast-${t.tipo}`}&gt;
             {t.mensaje}
           &lt;/div&gt;
@@ -162,6 +194,7 @@ export function ToastProvider({ children }) {
   )
 }
 &nbsp;
+// Hook de acceso directo: cualquier componente importa useToast() sin saber que internamente usa useContext
 export function useToast() {
   return useContext(ToastContext)
 }
@@ -172,7 +205,7 @@ export function useToast() {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-06-29T14:56:02.180Z
+                at 2026-06-30T10:01:55.642Z
             </div>
         <script src="../prettify.js"></script>
         <script>

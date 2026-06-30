@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db, get_tenant_filter, get_usuario_actual
 from app.models.usuario import Usuario
+from app.schemas.admin import Paginacion
 from app.schemas.fichaje import FichajeResumenResponse, FichajeResponse
 from app.services.fichaje_service import (
     fichaje_abierto,
@@ -17,13 +18,15 @@ from app.services.fichaje_service import (
 router = APIRouter(prefix="/fichajes", tags=["Fichajes"])
 
 
-@router.get("", response_model=list[FichajeResponse])
+@router.get("")
 async def get_fichajes(
     db: AsyncSession = Depends(get_db),
     codigo_empresa: int = Depends(get_tenant_filter),
     usuario: Usuario = Depends(get_usuario_actual),
+    pag: Paginacion = Depends(),
 ):
-    return await listar_fichajes(db, usuario.codigo_usuario, codigo_empresa)
+    items, total = await listar_fichajes(db, usuario.codigo_usuario, codigo_empresa, pag.skip, pag.limit)
+    return {"items": items, "total": total}
 
 
 @router.get("/actual", response_model=FichajeResponse)
@@ -32,6 +35,8 @@ async def get_actual(
     codigo_empresa: int = Depends(get_tenant_filter),
     usuario: Usuario = Depends(get_usuario_actual),
 ):
+    # Endpoint específico para saber si el usuario tiene un fichaje abierto,
+    # útil para que el frontend muestre el botón de "Entrada" o "Salida"
     fichaje = await fichaje_abierto(db, usuario.codigo_usuario, codigo_empresa)
     if not fichaje:
         from fastapi import HTTPException, status
@@ -54,7 +59,10 @@ async def get_exportar(
     codigo_empresa: int = Depends(get_tenant_filter),
     usuario: Usuario = Depends(get_usuario_actual),
 ):
-    fichajes = await listar_fichajes(db, usuario.codigo_usuario, codigo_empresa)
+    # Usamos PlainTextResponse en vez de StreamingResponse porque el CSV
+    # se genera completo en memoria (volumen pequeño) y así forzamos la
+    # descarga con la cabecera Content-Disposition adecuada
+    fichajes, _ = await listar_fichajes(db, usuario.codigo_usuario, codigo_empresa, limit=99999)
     csv = generar_csv(fichajes)
     return PlainTextResponse(
         content=csv,

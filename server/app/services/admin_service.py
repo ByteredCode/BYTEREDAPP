@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, status
@@ -24,10 +25,15 @@ from app.schemas.admin import (
 # Al crear empresa se activan todos los modulos por defecto
 SERVICIOS_POR_DEFECTO = ["scrum", "tickets", "documentacion", "fichaje", "redireccion"]
 
+# Los servicios de admin reciben codigo_empresa como opcional (int | None):
+# - admin_total lo omite (None) y ve datos de todo el sistema sin filtro de tenant
+# - admin_empresa pasa su codigo_empresa y solo ve los datos de su compañía
 
-async def listar_empresas(db: AsyncSession) -> list[Empresa]:
-    resultado = await db.execute(select(Empresa).order_by(Empresa.nombre))
-    return list(resultado.scalars().all())
+
+async def listar_empresas(db: AsyncSession, skip: int = 0, limit: int = 50) -> tuple[list[Empresa], int]:
+    total = (await db.execute(select(func.count(Empresa.codigo_empresa)))).scalar()
+    resultado = await db.execute(select(Empresa).order_by(Empresa.nombre).offset(skip).limit(limit))
+    return list(resultado.scalars().all()), total
 
 
 async def crear_empresa(db: AsyncSession, data: EmpresaCreate) -> Empresa:
@@ -35,7 +41,8 @@ async def crear_empresa(db: AsyncSession, data: EmpresaCreate) -> Empresa:
     db.add(empresa)
     await db.flush()  # Flush para obtener el ID sin commit todavia
 
-    # Crear todos los servicios activos para la nueva empresa
+    # Tras crear la empresa, activamos todos los módulos por defecto para que
+    # el nuevo tenant empiece operativo sin necesidad de configuración manual
     for servicio in SERVICIOS_POR_DEFECTO:
         es = EmpresaServicio(codigo_empresa=empresa.codigo_empresa, servicio=servicio, activo=True)
         db.add(es)
@@ -77,15 +84,28 @@ async def eliminar_empresa(db: AsyncSession, codigo_empresa: int) -> None:
     await db.commit()
 
 
-async def listar_usuarios(db: AsyncSession, codigo_empresa: int | None = None) -> list[Usuario]:
+async def listar_usuarios(db: AsyncSession, codigo_empresa: int | None = None, skip: int = 0, limit: int = 50) -> tuple[list[Usuario], int]:
+    count_query = select(func.count(Usuario.codigo_usuario))
     query = select(Usuario).order_by(Usuario.nombre)
     if codigo_empresa is not None:
+        count_query = count_query.where(Usuario.codigo_empresa == codigo_empresa)
         query = query.where(Usuario.codigo_empresa == codigo_empresa)
-    resultado = await db.execute(query)
-    return list(resultado.scalars().all())
+    total = (await db.execute(count_query)).scalar()
+    resultado = await db.execute(query.offset(skip).limit(limit))
+    return list(resultado.scalars().all()), total
 
 
 async def crear_usuario_admin(db: AsyncSession, data: UsuarioCreate) -> Usuario:
+    if len(data.contrasena) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La contrasena debe tener al menos 8 caracteres",
+        )
+    if not re.search(r"[A-Z]", data.contrasena) or not re.search(r"[0-9]", data.contrasena):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La contrasena debe tener al menos una mayuscula y un numero",
+        )
     existe = await db.execute(select(Usuario).where(Usuario.correo == data.correo))
     if existe.scalar_one_or_none():
         raise HTTPException(
@@ -93,6 +113,8 @@ async def crear_usuario_admin(db: AsyncSession, data: UsuarioCreate) -> Usuario:
             detail="El correo ya esta registrado",
         )
 
+    # Verificamos que la empresa destino exista antes de crear el usuario
+    # para evitar huérfanos (usuarios sin empresa válida) en el sistema
     empresa = await db.execute(select(Empresa).where(Empresa.codigo_empresa == data.codigo_empresa))
     if not empresa.scalar_one_or_none():
         raise HTTPException(
@@ -173,7 +195,9 @@ async def toggle_servicio(db: AsyncSession, codigo_empresa: int, data: ServicioT
         # Si ya existe, actualizar estado
         servicio.activo = data.activo
     else:
-        # Si no existe, crear nuevo registro (upsert)
+        # Upsert: si no existe el registro de servicio, lo creamos.
+        # Esto permite activar módulos que no estaban en SERVICIOS_POR_DEFECTO
+        # sin depender de una migración ni lanzar error por registro faltante
         servicio = EmpresaServicio(
             codigo_empresa=codigo_empresa,
             servicio=data.servicio,
@@ -187,6 +211,10 @@ async def toggle_servicio(db: AsyncSession, codigo_empresa: int, data: ServicioT
 
 
 async def obtener_stats(db: AsyncSession, codigo_empresa: int | None = None) -> AdminStatsResponse:
+    # 'filtrar' es una función auxiliar que devuelve la condición WHERE apropiada:
+    # - codigo_empresa=None (admin_total) -> no filtra (devuelve la columna tal cual)
+    # - codigo_empresa=valor (admin_empresa) -> filtra por ese tenant
+    # Así evitamos repetir if/else en cada una de las queries siguientes
     def filtrar(col):
         return col if codigo_empresa is None else col == codigo_empresa
 

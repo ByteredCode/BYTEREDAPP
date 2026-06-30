@@ -1,0 +1,21 @@
+.tabla-admin {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-light);
+}
+.tabla-admin thead th {
+  background: #f8f9fd;
+  font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--text-muted); padding: 0.85rem 1rem; border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+}
+.tabla-admin tbody tr { border-bottom: 1px solid var(--border-light); transition: background 0.15s; }
+.tabla-admin tbody tr:last-child { border-bottom: none; }
+.tabla-admin tbody tr:hover { background: #fafbff; }
+.tabla-admin td { padding: 0.75rem 1rem; font-size: 0.9rem; vertical-align: middle; }
+.tabla-admin .acciones { display: flex; gap: 0.35rem; flex-wrap: wrap; }

@@ -1,3 +1,4 @@
+# Tests unitarios para los servicios (sin BD real, usando mocks de AsyncSession)
 from datetime import datetime
 from unittest.mock import MagicMock, patch
 
@@ -14,6 +15,7 @@ from tests.lib.mock_db import crear_mock_session
 
 
 async def test_registrar_usuario_exito():
+    # Registrar un usuario con datos válidos debe llamar a session.add, commit y refresh
     mock_session = crear_mock_session()
     mock_result = MagicMock(spec=Result)
     mock_result.scalar_one_or_none.return_value = None
@@ -34,6 +36,7 @@ async def test_registrar_usuario_exito():
 
 
 async def test_registrar_usuario_correo_duplicado():
+    # Si el correo ya existe, debe lanzar HTTPException 400
     mock_session = crear_mock_session()
     mock_result = MagicMock(spec=Result)
     mock_result.scalar_one_or_none.return_value = MagicMock()
@@ -51,6 +54,7 @@ async def test_registrar_usuario_correo_duplicado():
 
 
 async def test_registrar_usuario_contrasena_sin_mayuscula():
+    # Validación de seguridad: contraseña sin mayúscula debe ser rechazada
     mock_session = crear_mock_session()
 
     with pytest.raises(HTTPException) as exc:
@@ -65,6 +69,7 @@ async def test_registrar_usuario_contrasena_sin_mayuscula():
 
 
 async def test_registrar_usuario_contrasena_sin_numero():
+    # Validación de seguridad: contraseña sin número debe ser rechazada
     mock_session = crear_mock_session()
 
     with pytest.raises(HTTPException) as exc:
@@ -79,6 +84,7 @@ async def test_registrar_usuario_contrasena_sin_numero():
 
 
 async def test_iniciar_sesion_exito():
+    # Login exitoso debe devolver usuario + tokens
     mock_session = crear_mock_session()
     mock_result = MagicMock(spec=Result)
     mock_usuario = MagicMock()
@@ -102,6 +108,7 @@ async def test_iniciar_sesion_exito():
 
 
 async def test_iniciar_sesion_fallido():
+    # Login con usuario inexistente debe lanzar HTTPException 401
     mock_session = crear_mock_session()
     mock_result = MagicMock(spec=Result)
     mock_result.scalar_one_or_none.return_value = None
@@ -117,6 +124,7 @@ async def test_iniciar_sesion_fallido():
 
 
 async def test_crear_ticket_exito():
+    # Crear un ticket debe llamar a session.add y session.commit
     mock_session = crear_mock_session()
 
     data = TicketCreate(
@@ -138,6 +146,7 @@ async def test_crear_ticket_exito():
 
 
 async def test_crear_ticket_anonimo():
+    # Un ticket creado sin usuario autenticado debe tener codigo_usuario=None
     mock_session = crear_mock_session()
 
     data = TicketCreate(
@@ -157,6 +166,7 @@ async def test_crear_ticket_anonimo():
 
 
 async def test_registrar_entrada():
+    # Registrar entrada debe crear un Fichaje con hora_entrada y hora_salida=None
     mock_session = crear_mock_session()
 
     fichaje = await registrar_entrada(
@@ -172,6 +182,7 @@ async def test_registrar_entrada():
 
 
 async def test_registrar_salida_sin_entrada():
+    # Si no hay fichaje abierto, registrar salida debe lanzar HTTPException 404
     mock_session = crear_mock_session()
     mock_result = MagicMock(spec=Result)
     mock_result.scalar_one_or_none.return_value = None
@@ -187,6 +198,7 @@ async def test_registrar_salida_sin_entrada():
 
 
 async def test_registrar_salida_exito():
+    # Registrar salida con un fichaje abierto debe completar hora_salida
     mock_session = crear_mock_session()
     mock_result = MagicMock(spec=Result)
     fichaje = Fichaje(

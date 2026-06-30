@@ -2,12 +2,18 @@ import { useState } from "react"
 import api from "../../api/axios"
 import { useToast } from "../../context/ToastContext"
 
+// Arrays fijos para los select del formulario; se definen fuera del componente
+// para que no se recree la referencia en cada renderizado
 const PRIORIDADES = ["Baja", "Media", "Alta", "Critica"]
 const COLUMNAS = ["Todo", "Haciendose", "En revision", "Done"]
 
-// Modal de formulario para crear/editar tareas
+// Modal de formulario para crear/editar tareas; recibe la tarea a editar (o null),
+// la columna por defecto, la lista de sprints y callbacks para notificar cambios
 export default function TareaForm({ editando, columna, sprints, sprintActivo, onClose, onSaved }) {
   const { showToast } = useToast()
+  // Inicializamos el formulario con los datos de la tarea a editar (si existe)
+  // o con valores por defecto. Usamos || en vez de ?? porque queremos tratar
+  // los strings vacíos igual que undefined (ej. fecha_limite "")
   const [form, setForm] = useState({
     titulo: editando?.titulo || "",
     descripcion: editando?.descripcion || "",
@@ -22,7 +28,8 @@ export default function TareaForm({ editando, columna, sprints, sprintActivo, on
     e.preventDefault()
     try {
       const payload = { ...form }
-      // Limpiar campos vacios para que el backend los interprete como null
+      // El backend espera null explícito para campos opcionales vacíos;
+      // si enviamos string vacío, la BD almacenaría '' en lugar de NULL
       if (!payload.fecha_limite) payload.fecha_limite = null
       if (!payload.asignacion) payload.asignacion = null
       if (!payload.codigo_sprint) payload.codigo_sprint = null
@@ -33,7 +40,8 @@ export default function TareaForm({ editando, columna, sprints, sprintActivo, on
       } else {
         await api.post("/scrum/tareas", payload)
       }
-      onSaved()  // Recargar el tablero despues de guardar
+      // onSaved() refresca el tablero para reflejar la nueva tarea sin recargar la página
+      onSaved()
       onClose()
     } catch (err) {
       showToast(err.response?.data?.detail || "Error al guardar tarea")
@@ -41,6 +49,8 @@ export default function TareaForm({ editando, columna, sprints, sprintActivo, on
   }
 
   return (
+    // El overlay cierra el modal al hacer click fuera;
+    // stopPropagation en el modal evita que el click en el formulario lo cierre
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <h3>{editando ? "Editar tarea" : "Nueva tarea"}</h3>

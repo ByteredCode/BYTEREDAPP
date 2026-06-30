@@ -2,6 +2,8 @@ import { useEffect, useState } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import api from "../../api/axios"
 
+// Constante fuera del componente para que no se recre en cada render; además funciona como fuente única de verdad
+// de qué servicios existen en el sistema, emparejada con las claves que usa el backend
 const SERVICIOS_DISPONIBLES = [
   { clave: "scrum", etiqueta: "Scrum" },
   { clave: "tickets", etiqueta: "Tickets" },
@@ -19,6 +21,7 @@ export default function Servicios() {
   const [nombreEmpresa, setNombreEmpresa] = useState("")
 
   useEffect(() => {
+    // Promise.all lanza ambas peticiones en paralelo (no secuencial) porque ninguna depende de la otra; ahorramos tiempo de carga
     Promise.all([
       api.get(`/admin/empresas/${id}/servicios`),
       api.get(`/admin/empresas/${id}`),
@@ -56,6 +59,8 @@ export default function Servicios() {
   if (cargando) return <p className="cargando">Cargando servicios...</p>
   if (error) return <p className="error">{error}</p>
 
+  // Convertimos el array de servicios en un mapa para poder consultar en O(1) si un servicio está activo,
+  // en vez de tener que hacer .find() dentro del render de cada servicio (que sería O(n) por item)
   const serviciosMap = {}
   servicios.forEach((s) => {
     serviciosMap[s.servicio] = s.activo
@@ -79,6 +84,7 @@ export default function Servicios() {
 
       <div className="servicios-lista">
         {SERVICIOS_DISPONIBLES.map((s) => {
+          // Comparación estricta con true por si serviciosMap[s.clave] es undefined (servicio nunca guardado) o null
           const activo = serviciosMap[s.clave] === true
           return (
             <div key={s.clave} className="servicio-item">

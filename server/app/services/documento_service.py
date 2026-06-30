@@ -3,7 +3,7 @@ import uuid
 from datetime import date
 
 from fastapi import HTTPException, UploadFile, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.documento import Documento
@@ -39,8 +39,11 @@ async def subir_documento(
             detail=f"Extension no permitida: {ext}",
         )
 
+    # Cada empresa tiene su propia carpeta para evitar mezcla entre tenants
     os.makedirs(os.path.join(DIRECTORIO_UPLOADS, str(codigo_empresa)), exist_ok=True)
 
+    # Usamos UUID en el nombre para evitar colisiones y, sobre todo, para que
+    # usuarios malintencionados no puedan adivinar rutas de otros archivos
     nombre_unico = f"{uuid.uuid4().hex}{ext}"
     ruta_relativa = os.path.join(str(codigo_empresa), nombre_unico)
     ruta_completa = os.path.join(DIRECTORIO_UPLOADS, ruta_relativa)
@@ -51,6 +54,9 @@ async def subir_documento(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="El archivo supera el tamano maximo de 10MB",
         )
+    # Almacenamos en disco en vez de en la BD porque los archivos binarios grandes
+    # ralentizan las queries, incrementan el tamano de los backups y dificultan el
+    # acceso directo desde el sistema de archivos (ej. servir por nginx)
     with open(ruta_completa, "wb") as f:
         f.write(contenido)
 
@@ -68,18 +74,19 @@ async def subir_documento(
     return doc
 
 
-async def listar_documentos(db: AsyncSession, codigo_empresa: int, usuario_id: int, es_admin: bool) -> list[Documento]:
-    query = select(Documento).where(Documento.codigo_empresa == codigo_empresa)
+async def listar_documentos(db: AsyncSession, codigo_empresa: int, usuario_id: int, es_admin: bool, skip: int = 0, limit: int = 50) -> tuple[list[Documento], int]:
+    base = select(Documento).where(Documento.codigo_empresa == codigo_empresa)
     if not es_admin:
         subquery = (
             select(DocumentoPermiso.id_documento).where(DocumentoPermiso.codigo_usuario == usuario_id)
         ).subquery()
-        query = query.where(
+        base = base.where(
             (Documento.usuario_subio == usuario_id) | (Documento.id_documento.in_(select(subquery)))
         )
-    query = query.order_by(Documento.fecha.desc())
+    total = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar()
+    query = base.order_by(Documento.fecha.desc()).offset(skip).limit(limit)
     resultado = await db.execute(query)
-    return resultado.scalars().all()
+    return resultado.scalars().all(), total
 
 
 async def obtener_documento(db: AsyncSession, id_documento: int, codigo_empresa: int) -> Documento:

@@ -1,3 +1,5 @@
+// Importaciones agrupadas por tipo: contexto > layout > guards > páginas
+// Esto facilita localizar dependencias de un vistazo
 import { BrowserRouter, Routes, Route } from "react-router-dom"
 import { AuthProvider } from "./context/AuthContext"
 import { ToastProvider } from "./context/ToastContext"
@@ -23,6 +25,7 @@ import TicketsAdmin from "./pages/admin/TicketsAdmin"
 import DocumentosAdmin from "./pages/Documentos/DocumentosAdmin"
 import Fichajes from "./pages/Fichajes"
 import MiEmpresa from "./pages/MiEmpresa"
+import NotFound from "./components/common/NotFound"
 
 export default function App() {
   return (
@@ -33,9 +36,10 @@ export default function App() {
           {/* Rutas publicas (sin layout ni autenticacion) */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          {/* NuevoTicket es público porque clientes externos pueden reportar incidencias sin registrarse */}
           <Route path="/tickets/nuevo" element={<NuevoTicket />} />
 
-          {/* Rutas con layout principal (navbar) */}
+          {/* Layout como ruta "padre" sin path: solo aporta el navbar y <Outlet /> para las hijas */}
           <Route element={<Layout />}>
             <Route
               path="/dashboard"
@@ -53,7 +57,7 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
-            {/* Rutas de administracion (solo admins) */}
+            {/* Las rutas admin se anidan dentro de AdminLayout que renderiza la sidebar + <Outlet /> */}
             <Route
               path="/admin"
               element={
@@ -65,6 +69,7 @@ export default function App() {
               <Route index element={<AdminDashboard />} />
               <Route path="empresas" element={<Empresas />} />
               <Route path="empresas/nueva" element={<EmpresaForm />} />
+              {/* :id es un parámetro dinámico; la misma ruta editar y el componente decide si crea o edita según si hay id */}
               <Route path="empresas/:id/editar" element={<EmpresaForm />} />
               <Route path="empresas/:id/usuarios" element={<EmpresaUsuarios />} />
               <Route path="empresas/:id/servicios" element={<Servicios />} />
@@ -82,7 +87,7 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
-            {/* Rutas de Scrum con sub-layout (tabs) */}
+            {/* ScrumLayout renderiza tabs de navegación interna (Tablero / Sprints) y un <Outlet /> */}
             <Route
               path="/scrum"
               element={
@@ -95,8 +100,8 @@ export default function App() {
               <Route path="sprints" element={<Sprints />} />
             </Route>
           </Route>
-          {/* Catch-all: redirige al login */}
-          <Route path="*" element={<Login />} />
+          {/* Catch-all: cualquier ruta no definida muestra página 404 */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
         </ToastProvider>
       </AuthProvider>

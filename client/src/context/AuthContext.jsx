@@ -1,36 +1,42 @@
 import { createContext, useContext, useState, useEffect } from "react"
+// Usamos axios con interceptores para que el token se adjunte automaticamente a cada peticion
 import api from "../api/axios"
 
-// Contexto global de autenticacion para toda la aplicacion
+// Usamos Context API en vez de props para que cualquier componente hijo pueda leer la sesion sin recibirla explicitamente
 export const AuthContext = createContext()
 
 export function AuthProvider({ children }) {
+  // Mantenemos el usuario en estado para que React re-renderice cuando inicie/cierre sesion
   const [usuario, setUsuario] = useState(null)
-  const [cargando, setCargando] = useState(true)  // Mientras se verifica la sesion
+  // Arrancamos con 'cargando = true' para que la UI pueda mostrar un spinner antes de saber si hay sesion activa
+  const [cargando, setCargando] = useState(true)
 
-  // Al montar la app, verificar si hay un token valido en localStorage
+  // Solo se ejecuta al montar el provider ([] de dependencias) para restaurar la sesion del usuario si su token aun es valido
   useEffect(() => {
     const token = localStorage.getItem("access_token")
     if (token) {
+      // Pedimos al backend los datos del usuario asociado al token; si el token expiro el catch lo limpia
       api
         .get("/auth/me")
         .then((res) => setUsuario(res.data))
         .catch(() => {
-          // Token invalido/expirado: limpiar y redirigir
+          // Si el backend rechaza el token (expirado/invalido) borramos todo para que no queden residuos
           localStorage.removeItem("access_token")
           localStorage.removeItem("refresh_token")
         })
         .finally(() => setCargando(false))
     } else {
+      // Sin token no hay sesion que restaurar, marcamos como listo inmediatamente
       setCargando(false)
     }
   }, [])
 
   const login = async (correo, contrasena) => {
+    // El backend devuelve los tokens; los guardamos en localStorage para que sobrevivan al refresco de pagina
     const res = await api.post("/auth/login", { correo, contrasena })
     localStorage.setItem("access_token", res.data.access_token)
     localStorage.setItem("refresh_token", res.data.refresh_token)
-    // Obtener datos completos del usuario despues del login
+    // Tras guardar los tokens, pedimos el perfil completo para tener el objeto 'usuario' disponible en toda la app
     const me = await api.get("/auth/me")
     setUsuario(me.data)
     return me.data
@@ -38,9 +44,12 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     try {
-      await api.post("/auth/logout")
+      const refreshToken = localStorage.getItem("refresh_token")
+      if (refreshToken) {
+        await api.post("/auth/logout", { refresh_token: refreshToken })
+      }
     } catch {
-      // Error al llamar al backend no debe impedir el logout local
+      // Si el backend no responde, aun asi limpiamos el cliente para que el usuario no se quede atascado
     }
     localStorage.removeItem("access_token")
     localStorage.removeItem("refresh_token")
@@ -48,11 +57,12 @@ export function AuthProvider({ children }) {
   }
 
   return (
+    // Exponemos el estado y las funciones para que cualquier descendiente los consuma con useAuth()
     <AuthContext.Provider value={{ usuario, cargando, login, logout }}>
       {children}
     </AuthContext.Provider>
   )
 }
 
-// Hook personalizado para acceder al contexto desde cualquier componente
+// Encapsulamos useContext en un hook con nombre semantico para evitar importar createContext y useContext cada vez
 export const useAuth = () => useContext(AuthContext)

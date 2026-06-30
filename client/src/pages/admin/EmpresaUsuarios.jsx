@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react"
 import { Link, useParams, useNavigate } from "react-router-dom"
 import api from "../../api/axios"
+import Pagination from "../../components/common/Pagination"
+
+const LIMITE = 50
 
 export default function EmpresaUsuarios() {
   const { id } = useParams()
@@ -9,14 +12,18 @@ export default function EmpresaUsuarios() {
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState("")
   const [nombreEmpresa, setNombreEmpresa] = useState("")
+  const [pagina, setPagina] = useState(1)
+  const [total, setTotal] = useState(0)
 
   useEffect(() => {
+    const skip = (pagina - 1) * LIMITE
     Promise.all([
-      api.get(`/admin/empresas/${id}/usuarios`),
+      api.get(`/admin/empresas/${id}/usuarios?skip=${skip}&limit=${LIMITE}`),
       api.get(`/admin/empresas/${id}`),
     ])
       .then(([resUsuarios, resEmpresa]) => {
-        setUsuarios(resUsuarios.data)
+        setUsuarios(resUsuarios.data.items)
+        setTotal(resUsuarios.data.total)
         setNombreEmpresa(resEmpresa.data.nombre || "")
       })
       .catch((err) => {
@@ -25,7 +32,7 @@ export default function EmpresaUsuarios() {
         )
       })
       .finally(() => setCargando(false))
-  }, [id])
+  }, [id, pagina])
 
   if (cargando) return <p className="cargando">Cargando usuarios...</p>
   if (error) return <p className="error">{error}</p>
@@ -37,6 +44,9 @@ export default function EmpresaUsuarios() {
           <h1>Usuarios de {nombreEmpresa || `empresa #${id}`}</h1>
           <p className="subtitulo">Codigo de empresa: {id}</p>
         </div>
+        {/* Pasamos el id de la empresa como query param para que el formulario
+            de nuevo usuario pueda precargar el campo "empresa" automáticamente
+            sin necesidad de un estado global o contexto adicional. */}
         <Link
           to={`/admin/usuarios/nueva?empresa=${id}`}
           className="btn btn-primario"
@@ -45,6 +55,10 @@ export default function EmpresaUsuarios() {
         </Link>
       </div>
 
+      {/* Usamos navigate() en vez de Link porque queremos volver atrás sin que
+          el usuario pueda abrir el destino en una pestaña nueva (es una acción
+          de retroceso, no un enlace a un recurso concreto). El &larr; es un
+          carácter Unicode que evita cargar una librería de iconos solo para esto. */}
       <button
         type="button"
         className="btn btn-secundario btn-sm"
@@ -89,6 +103,7 @@ export default function EmpresaUsuarios() {
           </tbody>
         </table>
       )}
+      <Pagination pagina={pagina} totalPaginas={Math.ceil(total / LIMITE)} total={total} onCambiarPagina={setPagina} />
     </div>
   )
 }

@@ -1,6 +1,9 @@
 import { NavLink, Outlet } from "react-router-dom"
 
-// Layout con tabs de navegacion para el modulo Scrum
+// Layout tipo shell para las rutas hijas del módulo Scrum
+// NavLink proporciona el booleano isActive, permitiendo aplicar la clase "activo"
+// al tab correspondiente sin necesidad de lógica manual de detección de ruta
+// Outlet es el mecanismo de React Router para renderizar la ruta hija (Board o Sprints)
 export default function ScrumLayout() {
   return (
     <div className="scrum-layout">

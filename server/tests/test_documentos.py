@@ -1,3 +1,4 @@
+# Tests de integración para el módulo de documentos (subida, listado, permisos, eliminación)
 from io import BytesIO
 
 import pytest
@@ -7,6 +8,7 @@ from httpx import AsyncClient
 class TestDocumentos:
 
     async def test_subir_documento(self, client: AsyncClient, headers_usuario):
+        # Subida básica de un archivo PDF con tipo DPD; debe crear el documento en la BD
         files = {"archivo": ("test.pdf", BytesIO(b"contenido pdf"), "application/pdf")}
         data = {"tipo_documento": "DPD"}
         response = await client.post(
@@ -19,21 +21,25 @@ class TestDocumentos:
         assert body["ruta_archivo"] is not None
 
     async def test_subir_tipo_no_permitido(self, client: AsyncClient, headers_usuario):
+        # El backend debe rechazar tipos de archivo no permitidos (ejecutables, etc.)
         files = {"archivo": ("malware.exe", BytesIO(b"datos"), "application/x-msdownload")}
         response = await client.post("/documentos", files=files, headers=headers_usuario)
         assert response.status_code == 400
 
     async def test_listar_documentos(self, client: AsyncClient, headers_usuario):
+        # Tras subir un documento, debe aparecer en el listado
         files = {"archivo": ("doc1.pdf", BytesIO(b"contenido"), "application/pdf")}
         await client.post("/documentos", files=files, headers=headers_usuario)
 
         response = await client.get("/documentos", headers=headers_usuario)
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, list)
-        assert len(data) >= 1
+        assert "items" in data
+        assert isinstance(data["items"], list)
+        assert len(data["items"]) >= 1
 
     async def test_obtener_documento(self, client: AsyncClient, headers_usuario):
+        # Obtener un documento por su ID debe devolver sus metadatos
         files = {"archivo": ("doc.pdf", BytesIO(b"datos"), "application/pdf")}
         post_resp = await client.post("/documentos", files=files, headers=headers_usuario)
         doc_id = post_resp.json()["id_documento"]
@@ -45,6 +51,7 @@ class TestDocumentos:
     async def test_agregar_permiso(
         self, client: AsyncClient, headers_usuario, test_session, test_empresa
     ):
+        # El propietario del documento puede conceder permisos a otro usuario de la misma empresa
         from app.core.security import hash_contrasena
         from app.models.usuario import Usuario
 
@@ -76,6 +83,7 @@ class TestDocumentos:
     async def test_agregar_permiso_sin_ser_owner(
         self, client: AsyncClient, headers_usuario, headers_admin, test_session, test_empresa
     ):
+        # Un usuario que NO es propietario del documento no puede conceder permisos (403)
         from app.core.security import hash_contrasena
         from app.models.usuario import Usuario
 
@@ -100,6 +108,7 @@ class TestDocumentos:
         post_resp = await client.post("/documentos", files=files, headers=headers_owner)
         doc_id = post_resp.json()["id_documento"]
 
+        # headers_usuario NO es el owner de este documento
         payload = {"codigo_usuario": 999}
         response = await client.post(
             f"/documentos/{doc_id}/permisos",
@@ -111,6 +120,7 @@ class TestDocumentos:
     async def test_listar_permisos(
         self, client: AsyncClient, headers_usuario, test_session, test_empresa
     ):
+        # Tras agregar un permiso, debe aparecer en el listado de permisos del documento
         from app.core.security import hash_contrasena
         from app.models.usuario import Usuario
 
@@ -144,6 +154,7 @@ class TestDocumentos:
     async def test_quitar_permiso(
         self, client: AsyncClient, headers_usuario, test_session, test_empresa
     ):
+        # El propietario puede revocar un permiso existente
         from app.core.security import hash_contrasena
         from app.models.usuario import Usuario
 
@@ -174,6 +185,7 @@ class TestDocumentos:
         assert response.status_code == 204
 
     async def test_eliminar_documento(self, client: AsyncClient, headers_usuario):
+        # El propietario puede eliminar un documento (soft delete o borrado físico según implementación)
         files = {"archivo": ("borrar.pdf", BytesIO(b"datos"), "application/pdf")}
         post_resp = await client.post("/documentos", files=files, headers=headers_usuario)
         doc_id = post_resp.json()["id_documento"]

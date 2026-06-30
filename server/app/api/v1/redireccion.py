@@ -13,10 +13,14 @@ router = APIRouter(tags=["Redireccion"])
 
 @router.get("/r/{codigo_empresa}")
 async def redirigir(codigo_empresa: int, db: AsyncSession = Depends(get_db)):
+    # Endpoint público (sin autenticación) porque se usa desde códigos QR,
+    # emails o enlaces externos que ningún usuario ha iniciado sesión
     resultado = await db.execute(select(Empresa).where(Empresa.codigo_empresa == codigo_empresa))
     empresa = resultado.scalar_one_or_none()
     if not empresa or not empresa.web:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Empresa o enlace no configurado")
+    # Validamos el esquema de la URL para evitar open redirect que permita
+    # redirigir a protocolos peligrosos como file://, javascript: o data:
     parsed = urlparse(empresa.web)
     if parsed.scheme not in ("https", "http"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="URL no valida")

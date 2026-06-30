@@ -1,0 +1,48 @@
+.not-found {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  text-align: center;
+  padding: 2rem;
+}
+.not-found h1 {
+  font-size: 5rem;
+  color: var(--primary);
+  margin: 0 0 0.5rem;
+  line-height: 1;
+}
+.not-found p {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  margin: 0 0 2rem;
+}
+
+.permisos-agregar { display: flex; gap: 0.5rem; align-items: center; }
+.permisos-agregar input {
+  flex: 1; padding: 0.5rem 0.7rem;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  font-size: 0.9rem;
+}
+.permisos-agregar input:focus { outline: none; border-color: var(--primary); }
+
+.empresa-usuarios-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem; }
+.volver-link { display: inline-flex; align-items: center; gap: 0.3rem; color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem; }
+.volver-link:hover { color: var(--primary); }
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1rem 0;
+}
+.pagination span { color: var(--text-muted, #666); font-size: 0.85rem; }
+.pagination button {
+  padding: 0.4rem 0.8rem; border: 1px solid var(--border, #ddd);
+  border-radius: var(--radius, 6px); background: var(--bg-card, #fff);
+  color: var(--text, #333); cursor: pointer; font-size: 0.85rem;
+}
+.pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
+.pagination button:not(:disabled):hover { background: var(--primary, #2563eb); color: #fff; border-color: var(--primary, #2563eb); }

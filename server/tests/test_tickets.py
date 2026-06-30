@@ -1,3 +1,4 @@
+# Tests de integración para el módulo de tickets (creación, listado, cambio de estado, aislamiento)
 import pytest
 from httpx import AsyncClient
 
@@ -5,6 +6,7 @@ from httpx import AsyncClient
 class TestTickets:
 
     async def test_crear_ticket_anonimo(self, client: AsyncClient, test_empresa):
+        # Cualquier persona (sin autenticación) puede crear un ticket de soporte
         payload = {
             "nombre_contacto": "Anonimo",
             "correo_contacto": "anonimo@test.com",
@@ -22,6 +24,7 @@ class TestTickets:
         assert data["estado"] == "Pendiente"
 
     async def test_crear_ticket_autenticado(self, client: AsyncClient, headers_usuario, test_empresa):
+        # Un usuario autenticado también puede crear tickets; el backend asocia su user_id al ticket
         payload = {
             "asunto": "Ticket autenticado",
             "mensaje": "Soy usuario registrado",
@@ -34,13 +37,16 @@ class TestTickets:
         assert data["codigo_usuario"] is not None
 
     async def test_listar_tickets(self, client: AsyncClient, headers_usuario, test_ticket):
+        # El listado de tickets debe devolver los tickets de la empresa del usuario autenticado
         response = await client.get("/tickets", headers=headers_usuario)
         assert response.status_code == 200
         data = response.json()
-        assert isinstance(data, list)
-        assert len(data) >= 1
+        assert "items" in data
+        assert isinstance(data["items"], list)
+        assert len(data["items"]) >= 1
 
     async def test_obtener_ticket(self, client: AsyncClient, headers_usuario, test_ticket):
+        # Obtener un ticket específico por su ID
         response = await client.get(f"/tickets/{test_ticket.id_reporte}", headers=headers_usuario)
         assert response.status_code == 200
         data = response.json()
@@ -48,6 +54,7 @@ class TestTickets:
         assert data["mensaje"] == "Ticket de prueba"
 
     async def test_cambiar_estado_ticket(self, client: AsyncClient, headers_admin, test_ticket):
+        # Un admin puede cambiar el estado del ticket (ej. de "Pendiente" a "Leido")
         payload = {"estado": "Leido"}
         response = await client.put(
             f"/tickets/{test_ticket.id_reporte}/estado",
@@ -59,6 +66,7 @@ class TestTickets:
         assert data["estado"] == "Leido"
 
     async def test_ticket_otra_empresa(self, client: AsyncClient, test_session, headers_usuario):
+        # Un usuario no debe poder ver tickets de otras empresas (aislamiento multi-tenant)
         from app.models.empresa import Empresa
         from app.models.ticket import Ticket
 
@@ -83,6 +91,7 @@ class TestTickets:
         assert response.status_code == 404
 
     async def test_crear_ticket_sin_mensaje(self, client: AsyncClient, test_empresa):
+        # El schema de Pydantic debe rechazar tickets sin mensaje (campo requerido)
         payload = {
             "codigo_empresa": test_empresa.codigo_empresa,
         }

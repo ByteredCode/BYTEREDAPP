@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import config
@@ -11,6 +11,7 @@ from app.services.email_service import enviar_correo
 
 
 async def crear_ticket(db: AsyncSession, data: TicketCreate, codigo_usuario: int = None) -> Ticket:
+    # El ticket nace en estado "nuevo" por defecto en la BD
     ticket = Ticket(
         codigo_usuario=codigo_usuario,  # None si es ticket anonimo
         nombre_contacto=data.nombre_contacto,
@@ -24,7 +25,8 @@ async def crear_ticket(db: AsyncSession, data: TicketCreate, codigo_usuario: int
     await db.commit()
     await db.refresh(ticket)
 
-    # Notificacion por email si el SMTP esta configurado
+    # Solo se notifica por email si hay una direccion configurada; asi cada empresa
+    # decide si quiere alertas por correo o solo consultar el panel
     asunto_email = f"Nuevo ticket: {ticket.asunto or 'Sin asunto'} ({ticket.nivel_importancia})"
     cuerpo = (
         f"Ticket #{ticket.id_reporte}\n\n"
@@ -38,11 +40,14 @@ async def crear_ticket(db: AsyncSession, data: TicketCreate, codigo_usuario: int
     return ticket
 
 
-async def listar_tickets(db: AsyncSession, codigo_empresa: int) -> list[Ticket]:
+async def listar_tickets(db: AsyncSession, codigo_empresa: int, skip: int = 0, limit: int = 50) -> tuple[list[Ticket], int]:
+    total = (
+        await db.execute(select(func.count(Ticket.id_reporte)).where(Ticket.codigo_empresa == codigo_empresa))
+    ).scalar()
     resultado = await db.execute(
-        select(Ticket).where(Ticket.codigo_empresa == codigo_empresa).order_by(Ticket.fecha_reporte.desc())
+        select(Ticket).where(Ticket.codigo_empresa == codigo_empresa).order_by(Ticket.fecha_reporte.desc()).offset(skip).limit(limit)
     )
-    return resultado.scalars().all()
+    return resultado.scalars().all(), total
 
 
 async def obtener_ticket(db: AsyncSession, id_reporte: int, codigo_empresa: int) -> Ticket:
@@ -58,6 +63,8 @@ async def obtener_ticket(db: AsyncSession, id_reporte: int, codigo_empresa: int)
 async def actualizar_estado_ticket(
     db: AsyncSession, id_reporte: int, estado: str, codigo_empresa: int, respuesta: str | None = None
 ) -> Ticket:
+    # Ciclo de vida: nuevo -> respondido (u otros estados como "en curso", "cerrado").
+    # Cuando se adjunta una respuesta se marca la fecha para saber cuándo se atendio.
     ticket = await obtener_ticket(db, id_reporte, codigo_empresa)
     ticket.estado = estado
     if respuesta:

@@ -43,10 +43,9 @@ Sistema web multi-tenant para la gestión de empresas. Cada empresa tiene acceso
 ├── client/                 → Aplicación React (Vite + JavaScript) ✔
 ├── server/                 → API Backend (FastAPI + Python)
 ├── ia/                     → Documentación para agentes de IA de desarrollo ✔
-├── .github/workflows/      → CI/CD (GitHub Actions) ✔
+├── .github/workflows/      → CI/CD (GitHub Actions) con ci.yml + deploy-frontend.yml ✔
 ├── .opencode/              → Configuración de agentes de OpenCode ✔
-├── scripts/                → Scripts de utilidad para desarrollo
-├── docker-compose.yml      → Entorno local con MySQL ✔
+├── docker-compose.yml      → Entorno local con MySQL + Redis ✔
 ├── .env.example            → Plantilla de variables de entorno ✔
 ├── .gitignore              ✔
 └── README.md               ✔
@@ -56,35 +55,29 @@ Sistema web multi-tenant para la gestión de empresas. Cada empresa tiene acceso
 
 | Carpeta | Contenido |
 |---|---|
-| `public/` | Archivos estáticos (favicon, imágenes) |
-| `src/components/common/` | Componentes reutilizables: botones, inputs, modales, tablas |
-| `src/components/layout/` | Estructura visual: sidebar, header, footer, layout principal |
-| `src/pages/Auth/` | Páginas de login y registro |
-| `src/pages/Dashboard/` | Panel principal post-login |
-| `src/pages/Companies/` | Portal de empresa: perfil, configuración, datos |
-| `src/pages/Scrum/` | Tablero Scrum: proyectos, sprints, tareas kanban |
-| `src/pages/Docs/` | Documentación DPD/ISO: visor y gestor de documentos |
-| `src/pages/Tickets/` | Formulario de incidencias y listado histórico |
-| `src/pages/Admin/` | Panel admin: usuarios, empresas, estadísticas, histórico |
-| `src/hooks/` | Custom hooks de React (lógica reutilizable) |
-| `src/context/` | Contextos globales: AuthContext, TenantContext |
-| `src/services/` | Llamadas a la API (axios) |
-| `src/utils/` | Funciones auxiliares (formatos, validaciones, constantes) |
-| `src/styles/` | Archivos CSS globales y por página |
+| `public/` | Archivos estáticos (favicon.svg, site.webmanifest, robots.txt) |
+| `src/components/` | Componentes: Layout, guards (ProtectedRoute, AdminOnlyRoute), common/ (LoadingSpinner, ErrorAlert, NotFound) |
+| `src/pages/` | Páginas planas: Login, Register, Dashboard, Fichajes, MiEmpresa |
+| `src/pages/Scrum/` | Tablero Kanban y Sprints con sub-layout |
+| `src/pages/Tickets/` | Formulario público de incidencias (NuevoTicket) |
+| `src/pages/admin/` | Panel admin: Dashboard, Empresas, Usuarios, Servicios, Tickets, Documentos |
+| `src/pages/Documentos/` | Gestión de documentos DPD/ISO con permisos |
+| `src/context/` | Contextos globales: AuthContext (JWT), ToastContext (notificaciones) |
+| `src/api/` | Instancia axios con interceptores (token + refresh automático) |
+| `src/styles/` | Archivos CSS organizados por módulo (17 archivos) |
 
 #### `server/` — Backend FastAPI
 
 | Carpeta | Contenido |
 |---|---|
-| `app/api/v1/` | Endpoints de la API organizados por módulo (auth, companies, scrum, tickets, docs, admin) |
-| `app/core/` | Configuración global: conexión BD, JWT, seguridad, middleware multi-tenant |
-| `app/models/` | Modelos SQLAlchemy (tablas de la BD) |
-| `app/schemas/` | Esquemas Pydantic (validación de datos de entrada/salida) |
-| `app/services/` | Lógica de negocio (reglas, cálculos, procesos) |
-| `app/ai/` | Agentes de IA integrados en el producto (a futuro) |
-| `app/main.py` | Punto de entrada de la aplicación FastAPI |
+| `app/api/v1/` | Endpoints: auth, admin, empresa, scrum, tickets, documentos, fichajes, redireccion |
+| `app/core/` | Config global: conexión BD (SQLAlchemy async), JWT, seguridad, middleware tenant, Redis, blocklist |
+| `app/models/` | Modelos SQLAlchemy: Empresa, Usuario, Tarea, Sprint, Ticket, Documento, Permiso, Fichaje |
+| `app/schemas/` | Esquemas Pydantic (validación entrada/salida) |
+| `app/services/` | Lógica de negocio: auth, admin, scrum, ticket, fichaje, documento, email |
+| `run.py` | Punto de entrada de la aplicación FastAPI |
 | `alembic/` | Migraciones de la base de datos |
-| `tests/` | Tests unitarios y de integración |
+| `tests/` | Tests unitarios y de integración (12 archivos) |
 
 #### `ia/` — Sistema de agentes de IA para desarrollo
 
@@ -94,6 +87,8 @@ Sistema web multi-tenant para la gestión de empresas. Cada empresa tiene acceso
 | `architecture.md` | Resumen de la arquitectura para contexto rápido |
 | `rules/react-rules.md` | Reglas de estilo para frontend (React, JS, CSS plano) |
 | `rules/backend-rules.md` | Reglas de estilo para backend (FastAPI, Python) |
+| `rules/bd-rules.md` | Reglas de estilo para base de datos (MySQL, SQL) |
+| `rules/security-rules.md` | Reglas OWASP de ciberseguridad |
 | `context/database-schema.md` | Esquema actualizado de la base de datos |
 | `context/api-endpoints.md` | Lista actualizada de endpoints de la API |
 
@@ -227,7 +222,7 @@ pip install -r requirements.txt
 Copy-Item ..\.env.example .env
 
 # Iniciar servidor
-uvicorn app.main:app --reload
+uvicorn run:app --reload
 ```
 
 ### 4. Verificar
@@ -257,15 +252,14 @@ docker compose down
 
 ## CI/CD
 
-El repositorio incluye un pipeline de GitHub Actions en `.github/workflows/ci.yml` que ejecuta:
+El repositorio incluye dos pipelines de GitHub Actions:
 
-| Job | Descripción |
-|---|---|
-| **backend** | Tests con pytest + cobertura ≥80% sobre MySQL real |
-| **frontend** | Lint + tests con vitest + cobertura ≥80% + build |
-| **docker** | Build de imágenes (server + client) tras tests exitosos |
+| Pipeline | Archivo | Disparador | Jobs |
+|---|---|---|---|
+| **CI** | `.github/workflows/ci.yml` | Push/PR a main/master | Backend (pytest + cobertura ≥80%), Frontend (lint + vitest + build), Docker (build imágenes) |
+| **Deploy Frontend** | `.github/workflows/deploy-frontend.yml` | Push a main (ruta client/) | Build + placeholder para deploy a Hostinger |
 
-Para activarlo, el repositorio debe estar en GitHub. Las credenciales de base de datos se configuran vía `secrets.MYSQL_*` en el repositorio.
+Para activarlos, el repositorio debe estar en GitHub. Las credenciales de base de datos se configuran vía `secrets.MYSQL_*` en el repositorio.
 
 ## Arquitectura multi-tenant
 

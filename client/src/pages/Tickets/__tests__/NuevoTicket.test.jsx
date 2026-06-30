@@ -1,3 +1,5 @@
+// Tests unitarios del formulario público de tickets (NuevoTicket)
+// Verificamos renderizado, envío, estados de carga/éxito/error y reseteo del formulario
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import NuevoTicket from '../NuevoTicket'
 
@@ -9,6 +11,7 @@ describe('NuevoTicket', () => {
   beforeEach(() => { vi.clearAllMocks() })
 
   it('renders ticket form fields', () => {
+    // El formulario debe mostrar todos los campos necesarios para crear un ticket
     render(<NuevoTicket />)
     expect(screen.getByText('Enviar ticket de soporte')).toBeInTheDocument()
     expect(screen.getByText('Nombre (opcional)')).toBeInTheDocument()
@@ -21,6 +24,7 @@ describe('NuevoTicket', () => {
   })
 
   it('submits form data to API', async () => {
+    // Al completar el formulario y enviar, se debe llamar al endpoint POST /tickets
     const api = (await import('../../../api/axios')).default
     api.post.mockResolvedValueOnce({})
     render(<NuevoTicket />)
@@ -35,6 +39,7 @@ describe('NuevoTicket', () => {
   })
 
   it('shows success message after submission', async () => {
+    // Tras un envío exitoso, debe mostrarse la pantalla de confirmación "Ticket enviado"
     const api = (await import('../../../api/axios')).default
     api.post.mockResolvedValueOnce({})
     render(<NuevoTicket />)
@@ -49,6 +54,7 @@ describe('NuevoTicket', () => {
   })
 
   it('shows error on API failure', async () => {
+    // Si la API devuelve un error, debe mostrarse el mensaje de error en el formulario
     const api = (await import('../../../api/axios')).default
     api.post.mockRejectedValueOnce({
       response: { data: { detail: 'Error de conexión' } }
@@ -65,6 +71,7 @@ describe('NuevoTicket', () => {
   })
 
   it('resets form after clicking Enviar otro', async () => {
+    // Tras enviar, el botón "Enviar otro" debe resetear el formulario al estado inicial
     const api = (await import('../../../api/axios')).default
     api.post.mockResolvedValueOnce({})
     render(<NuevoTicket />)
@@ -79,6 +86,7 @@ describe('NuevoTicket', () => {
   })
 
   it('shows loading state while submitting', async () => {
+    // Mientras se envía la petición, el botón debe mostrar "Enviando..." (estado de carga)
     const api = (await import('../../../api/axios')).default
     let resolvePromise
     api.post.mockReturnValueOnce(new Promise((resolve) => { resolvePromise = resolve }))

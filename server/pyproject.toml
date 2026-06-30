@@ -1,3 +1,10 @@
+[project]
+name = "byteredapp-api"
+version = "0.1.0"
+description = "API REST multi-tenant para BYTEREDAPP"
+requires-python = ">=3.11"
+dependencies = []
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]

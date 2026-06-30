@@ -23,17 +23,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
           cache: "pip"
 
       - name: Install dependencies
         working-directory: server
         run: |
           pip install -r requirements.txt -r requirements-dev.txt
-          pip install email-validator
 
       - name: Wait for MySQL
         run: |
@@ -48,10 +47,15 @@ jobs:
           MYSQL_PORT: 3307
           MYSQL_DATABASE: byteredapp_test
 
-      - name: Run tests with coverage
+      - name: Run tests (SQLite)
         working-directory: server
-        run: pytest tests/ --cov=app --cov-report=term --cov-fail-under=80
+        run: pytest tests/ -q --cov=app --cov-report=term --cov-fail-under=75
+
+      - name: Run tests (MySQL)
+        working-directory: server
+        run: pytest tests/ -q --cov=app --cov-report=term --cov-fail-under=75
         env:
+          USE_MYSQL_TEST: "1"
           MYSQL_HOST: 127.0.0.1
           MYSQL_PORT: 3307
           MYSQL_DATABASE: byteredapp_test

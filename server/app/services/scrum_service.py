@@ -1,5 +1,5 @@
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.sprint import Sprint
@@ -12,6 +12,9 @@ async def listar_tareas(db: AsyncSession, codigo_empresa: int, codigo_sprint: in
     query = select(Tarea).where(Tarea.codigo_empresa == codigo_empresa)
     if codigo_sprint is not None:
         query = query.where(Tarea.codigo_sprint == codigo_sprint)
+    # Ordenamos por columna primero y luego por 'orden' dentro de cada columna
+    # para que el frontend reciba las tareas ya ordenadas para el Kanban y no
+    # tenga que reordenarlas en cliente tras cada drag & drop
     query = query.order_by(Tarea.columna, Tarea.orden)
     resultado = await db.execute(query)
     return resultado.scalars().all()
@@ -19,7 +22,8 @@ async def listar_tareas(db: AsyncSession, codigo_empresa: int, codigo_sprint: in
 
 async def obtener_tablero(db: AsyncSession, codigo_empresa: int, codigo_sprint: int = None) -> dict:
     tareas = await listar_tareas(db, codigo_empresa, codigo_sprint)
-    # Agrupar tareas por columna para el Kanban
+    # Agrupar tareas en las cuatro columnas clásicas de Kanban; el frontend
+    # itera sobre estas claves para montar el tablero sin lógica de agrupación
     return {
         "Todo": [t for t in tareas if t.columna == "Todo"],
         "Haciendose": [t for t in tareas if t.columna == "Haciendose"],
@@ -56,7 +60,10 @@ async def actualizar_tarea(db: AsyncSession, codigo_tarea: int, data: TareaUpdat
 
 
 async def mover_tarea(db: AsyncSession, codigo_tarea: int, columna: str, orden: int, codigo_empresa: int) -> Tarea:
-    # Endpoint especifico para drag & drop: solo actualiza columna y orden
+    # Endpoint específico para drag & drop: actualiza columna Y orden en un solo
+    # paso atómico. El frontend calcula el nuevo 'orden' según la posición donde
+    # se suelta la tarea, recorriendo las tareas vecinas para asignar un valor
+    # secuencial (1, 2, 3...) que el backend acepta sin recalcular nada
     tarea = await obtener_tarea(db, codigo_tarea, codigo_empresa)
     tarea.columna = columna
     tarea.orden = orden
@@ -71,11 +78,14 @@ async def eliminar_tarea(db: AsyncSession, codigo_tarea: int, codigo_empresa: in
     await db.commit()
 
 
-async def listar_sprints(db: AsyncSession, codigo_empresa: int) -> list[Sprint]:
+async def listar_sprints(db: AsyncSession, codigo_empresa: int, skip: int = 0, limit: int = 50) -> tuple[list[Sprint], int]:
+    total = (
+        await db.execute(select(func.count(Sprint.codigo_sprint)).where(Sprint.codigo_empresa == codigo_empresa))
+    ).scalar()
     resultado = await db.execute(
-        select(Sprint).where(Sprint.codigo_empresa == codigo_empresa).order_by(Sprint.codigo_sprint.desc())
+        select(Sprint).where(Sprint.codigo_empresa == codigo_empresa).order_by(Sprint.codigo_sprint.desc()).offset(skip).limit(limit)
     )
-    return resultado.scalars().all()
+    return resultado.scalars().all(), total
 
 
 async def crear_sprint(db: AsyncSession, data, codigo_empresa: int) -> Sprint:

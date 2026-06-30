@@ -6,6 +6,8 @@ from pydantic_settings import BaseSettings
 logger = logging.getLogger(__name__)
 
 
+# Pydantic BaseSettings lee automaticamente variables de entorno y .env
+# Ofrece tipado estricto y validacion en lugar de os.getenv() manual
 class Config(BaseSettings):
     MYSQL_HOST: str = "localhost"
     MYSQL_PORT: int = 3306
@@ -32,6 +34,7 @@ class Config(BaseSettings):
     SMTP_PASSWORD: str = ""
     TICKETS_EMAIL: str = "admin@byteredapp.com"
 
+    # @property evita almacenar valores derivados: se calculan cada vez que se accede
     @property
     def redis_configurado(self) -> bool:
         return bool(self.REDIS_HOST)
@@ -47,10 +50,12 @@ class Config(BaseSettings):
     def smtp_configurado(self) -> bool:
         return bool(self.SMTP_HOST and self.SMTP_PORT)
 
+    # Hook de Pydantic v2 que se ejecuta tras crear la instancia
+    # Sirve para validaciones que dependen del valor final de los campos
     def model_post_init(self, __context) -> None:
-        if self.JWT_SECRET == "changeme":
+        if self.JWT_SECRET in {"changeme", "super-secret-key-change-in-production"}:
             logger.warning(
-                "JWT_SECRET usa el valor por defecto 'changeme'. "
+                "JWT_SECRET usa un valor por defecto. "
                 "Genera uno seguro con: python scripts/generate_secret.py"
             )
         if not self.smtp_configurado:
@@ -68,5 +73,6 @@ class Config(BaseSettings):
     model_config = {"env_file": "../.env", "case_sensitive": True, "extra": "ignore"}
 
 
-# Instancia unica (singleton) importada en toda la aplicacion
+# Singleton: se instancia una sola vez al importar el modulo
+# Carga el .env una unica vez y todas las capas usan la misma instancia
 config = Config()
