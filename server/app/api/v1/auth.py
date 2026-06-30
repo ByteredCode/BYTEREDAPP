@@ -13,22 +13,12 @@ from app.core.security import (
     decodificar_token,
 )
 from app.models.usuario import Usuario
-from app.schemas.auth import LoginRequest, LogoutRequest, RegisterRequest, TokenResponse, UsuarioResponse
-from app.services.auth_service import cerrar_sesion, iniciar_sesion, registrar_usuario
+from app.schemas.auth import LoginRequest, LogoutRequest, TokenResponse, UsuarioResponse
+from app.services.auth_service import cerrar_sesion, iniciar_sesion
 from app.services.fichaje_service import registrar_entrada
 
 logger = logging.getLogger("byteredapp.auth")
 router = APIRouter(tags=["Auth"])
-
-
-@router.post("/auth/register", response_model=UsuarioResponse)
-@limiter.limit("10/minute")
-async def register(request: Request, body: RegisterRequest, db: AsyncSession = Depends(get_db)):
-    usuario = await registrar_usuario(
-        db, correo=body.correo, contrasena=body.contrasena, nombre=body.nombre, codigo_empresa=body.codigo_empresa
-    )
-    logger.info("Usuario registrado: %s (empresa %s)", usuario.codigo_usuario, usuario.codigo_empresa)
-    return usuario
 
 
 @router.post("/auth/login", response_model=TokenResponse)
