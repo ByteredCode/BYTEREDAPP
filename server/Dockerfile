@@ -23,7 +23,8 @@ COPY run.py .
 COPY alembic.ini .
 COPY alembic/ alembic/
 COPY app/ app/
+COPY start.sh .
 
 EXPOSE 8000
 
-CMD ["uvicorn", "run:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["bash", "start.sh"]
