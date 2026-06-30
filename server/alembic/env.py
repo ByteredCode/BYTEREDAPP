@@ -4,6 +4,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from app.core.config import config as app_config
 from app.core.database import Base
 # Importar modelos para que Base.metadata los conozca al generar migraciones
 from app.models import Empresa, EmpresaServicio, Usuario, Tarea, Documento, DocumentoPermiso, Ticket, Fichaje
@@ -37,7 +38,7 @@ def do_run_migrations(connection):
 
 async def run_async_migrations() -> None:
     # Conexion asincrona para ejecutar migraciones sobre MySQL
-    connectable = create_async_engine(config.get_main_option("sqlalchemy.url"))
+    connectable = create_async_engine(app_config.database_url)
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
     await connectable.dispose()
