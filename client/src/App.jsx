@@ -7,7 +7,6 @@ import Layout from "./components/Layout"
 import ProtectedRoute from "./components/ProtectedRoute"
 import AdminOnlyRoute from "./components/AdminOnlyRoute"
 import Login from "./pages/Login"
-import Register from "./pages/Register"
 import Dashboard from "./pages/Dashboard"
 import AdminLayout from "./pages/admin/AdminLayout"
 import AdminDashboard from "./pages/admin/AdminDashboard"
@@ -35,7 +34,6 @@ export default function App() {
         <Routes>
           {/* Rutas publicas (sin layout ni autenticacion) */}
           <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
           {/* NuevoTicket es público porque clientes externos pueden reportar incidencias sin registrarse */}
           <Route path="/tickets/nuevo" element={<NuevoTicket />} />
 

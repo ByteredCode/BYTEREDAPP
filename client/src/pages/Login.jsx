@@ -65,7 +65,7 @@ export default function Login() {
         </form>
         <div className="auth-link">
           {/* Link de React Router evita recarga completa y preserva el estado de la sesión */}
-          ¿No tienes cuenta? <Link to="/register">Registrarse</Link>
+          Contacta con tu administrador para crear una cuenta
         </div>
       </div>
     </div>
