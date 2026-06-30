@@ -2,4 +2,5 @@
 set -e
 alembic stamp head
 alembic upgrade head
+python scripts/auto_seed.py
 uvicorn run:app --host 0.0.0.0 --port "$PORT" --forwarded-allow-ips '*'

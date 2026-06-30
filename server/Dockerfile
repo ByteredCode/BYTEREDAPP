@@ -23,6 +23,7 @@ COPY run.py .
 COPY alembic.ini .
 COPY alembic/ alembic/
 COPY app/ app/
+COPY scripts/ scripts/
 COPY start.sh .
 RUN chmod +x start.sh
 
