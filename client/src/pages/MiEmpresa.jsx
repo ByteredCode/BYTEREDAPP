@@ -98,8 +98,8 @@ export default function MiEmpresa() {
             <button className="btn" onClick={() => setEditando(true)}>Editar</button>
           )}
 
-          <h2 style={{ marginTop: "2rem" }}>Servicios contratados</h2>
-          <div className="servicios-lista" style={{ marginTop: "1rem" }}>
+          <h2>Servicios contratados</h2>
+          <div className="servicios-lista">
             {servicios.map((s) => (
               <div key={s.servicio} className="servicio-item">
                 <span className="servicio-nombre">

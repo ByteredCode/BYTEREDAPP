@@ -144,6 +144,9 @@ async def actualizar_usuario(db: AsyncSession, codigo_usuario: int, data: Usuari
             detail="Usuario no encontrado",
         )
     update_data = data.model_dump(exclude_unset=True)
+    # Si viene contraseña, la hasheamos antes de guardar
+    if "contrasena" in update_data:
+        update_data["contrasena"] = hash_contrasena(update_data["contrasena"])
     for key, value in update_data.items():
         setattr(usuario, key, value)
     await db.commit()
