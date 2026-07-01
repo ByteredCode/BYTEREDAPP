@@ -28,12 +28,6 @@ async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends
     resultado = await iniciar_sesion(db, correo=body.correo, contrasena=body.contrasena)
     usuario = resultado["usuario"]
     logger.info("Login exitoso: usuario %s, empresa %s", usuario.codigo_usuario, usuario.codigo_empresa)
-    try:
-        # Se registra automáticamente el fichaje de entrada al hacer login
-        await registrar_entrada(db, usuario.codigo_usuario, usuario.codigo_empresa)
-    except Exception:
-        # Si el módulo de fichaje no está activo, se ignora el error
-        pass
     # Devolvemos tokens y no el usuario: el frontend almacena el JWT y lo envia en cada request posterior
     return resultado["tokens"]
 

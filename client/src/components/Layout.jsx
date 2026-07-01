@@ -22,7 +22,9 @@ export default function Layout() {
             <Link to="/dashboard" className="nav-logo">BYTERED</Link>
             <Link to="/mi-empresa" className="nav-link">Mi Empresa</Link>
             <Link to="/scrum/tablero" className="nav-link">Scrum</Link>
-            <Link to="/fichajes" className="nav-link">Fichajes</Link>
+            {usuario.rol === "admin_total" && (
+              <Link to="/fichajes" className="nav-link">Fichajes</Link>
+            )}
             <Link to="/tickets/nuevo" className="nav-link">Nuevo Ticket</Link>
             <Link to="/admin/tickets" className="nav-link">Tickets</Link>
             <Link to="/admin/documentos" className="nav-link">Documentos</Link>

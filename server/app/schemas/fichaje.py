@@ -37,6 +37,17 @@ class FichajeAdminResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class FichajeConUsuario(FichajeResponse):
+    usuario_nombre: Optional[str] = None
+    nombre_empresa: Optional[str] = None
+
+
+class GrupoFichajes(BaseModel):
+    codigo_empresa: int
+    nombre_empresa: str
+    fichajes: list[FichajeConUsuario]
+
+
 class FichajeResumenResponse(BaseModel):
     # Segundo nivel de detalle: en lugar de devolver todos los fichajes
     # del día, devolvemos métricas agregadas (horas totales) que son
