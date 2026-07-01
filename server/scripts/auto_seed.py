@@ -17,6 +17,10 @@ from app.models.usuario import Usuario
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger("auto_seed")
 
+ADMIN_CORREO = "antonio@bytered.es"
+ADMIN_CONTRASENA = "admin1234A"
+ADMIN_NOMBRE = "Antonio"
+
 
 async def auto_seed():
     database_url = config.database_url
@@ -26,27 +30,48 @@ async def auto_seed():
     async with Session() as session:
         total_empresas = await session.scalar(select(func.count(Empresa.codigo_empresa)))
         if total_empresas and total_empresas > 0:
-            logger.info("Ya existen empresas en la BD — seed automático omitido")
-            await engine.dispose()
-            return
+            admin = await session.scalar(
+                select(Usuario).where(Usuario.rol == "admin_empresa").limit(1)
+            )
+            if admin:
+                admin.correo = ADMIN_CORREO
+                admin.contrasena = hash_contrasena(ADMIN_CONTRASENA)
+                admin.nombre = ADMIN_NOMBRE
+                await session.commit()
+                logger.info("Admin actualizado: %s / %s", ADMIN_CORREO, ADMIN_CONTRASENA)
+                await engine.dispose()
+                return
+            empresa = await session.scalar(select(Empresa).limit(1))
+            if not empresa:
+                logger.info("No hay empresas en la BD")
+                await engine.dispose()
+                return
+            admin = Usuario(
+                correo=ADMIN_CORREO,
+                contrasena=hash_contrasena(ADMIN_CONTRASENA),
+                nombre=ADMIN_NOMBRE,
+                rol="admin_empresa",
+                codigo_empresa=empresa.codigo_empresa,
+            )
+            session.add(admin)
+            await session.commit()
+            logger.info("Admin creado: %s / %s", ADMIN_CORREO, ADMIN_CONTRASENA)
+        else:
+            empresa = Empresa(nombre="ByteRed Solutions SL")
+            session.add(empresa)
+            await session.flush()
+            logger.info("Empresa creada: %s (id %s)", empresa.nombre, empresa.codigo_empresa)
+            admin = Usuario(
+                correo=ADMIN_CORREO,
+                contrasena=hash_contrasena(ADMIN_CONTRASENA),
+                nombre=ADMIN_NOMBRE,
+                rol="admin_empresa",
+                codigo_empresa=empresa.codigo_empresa,
+            )
+            session.add(admin)
+            await session.commit()
+            logger.info("Admin creado: %s / %s", ADMIN_CORREO, ADMIN_CONTRASENA)
 
-        empresa = Empresa(nombre="ByteRed Solutions SL")
-        session.add(empresa)
-        await session.flush()
-        logger.info("Empresa creada: %s (id %s)", empresa.nombre, empresa.codigo_empresa)
-
-        admin = Usuario(
-            correo="antonio@bytered.es",
-            contrasena=hash_contrasena("admin1234A"),
-            nombre="Antonio",
-            rol="admin_empresa",
-            codigo_empresa=empresa.codigo_empresa,
-        )
-        session.add(admin)
-        await session.flush()
-        logger.info("Admin creado: antonio@bytered.es / admin1234A")
-
-        await session.commit()
         logger.info("Seed automático completado")
 
     await engine.dispose()
