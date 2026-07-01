@@ -25,7 +25,8 @@ export default function Sprints() {
       const res = await api.get("/scrum/sprints", { params: { skip: (pagina - 1) * 50, limit: 50 } })
       setSprints(res.data.items)
       setTotalPaginas(Math.ceil(res.data.total / 50) || 1)
-    } catch {
+    } catch (err) {
+      console.error("Error al cargar sprints:", err?.response?.data || err)
     } finally {
       setCargando(false)
     }
