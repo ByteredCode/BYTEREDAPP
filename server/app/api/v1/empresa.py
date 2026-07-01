@@ -9,7 +9,8 @@ from app.core.database import get_db
 from app.core.dependencies import get_usuario_actual
 from app.models.empresa import Empresa
 from app.models.usuario import Usuario
-from app.schemas.admin import EmpresaResponse
+from app.schemas.admin import EmpresaResponse, ServicioResponse
+from app.services import admin_service
 
 router = APIRouter(prefix="/empresa", tags=["Empresa"])
 
@@ -70,3 +71,20 @@ async def actualizar_mi_empresa(
     await db.commit()
     await db.refresh(empresa)
     return empresa
+
+
+@router.get("/mi-empresa/servicios", response_model=list[ServicioResponse])
+async def obtener_servicios_mi_empresa(
+    usuario: Usuario = Depends(get_usuario_actual),
+    db: AsyncSession = Depends(get_db),
+):
+    servicios_db = await admin_service.listar_servicios(db, usuario.codigo_empresa)
+    servicios = [
+        {"codigo_empresa": s.codigo_empresa, "servicio": s.servicio, "activo": s.activo}
+        for s in servicios_db
+    ]
+    if usuario.rol == "admin_total":
+        servicios.append(
+            {"codigo_empresa": usuario.codigo_empresa, "servicio": "gestion_usuarios", "activo": True}
+        )
+    return servicios

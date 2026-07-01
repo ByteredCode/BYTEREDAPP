@@ -2,31 +2,37 @@ import { useEffect, useState } from "react"
 import { useAuth } from "../context/AuthContext"
 import api from "../api/axios"
 
+const SERVICIOS_ETIQUETAS = {
+  scrum: "Scrum",
+  tickets: "Tickets de soporte",
+  documentacion: "Documentación DPD/ISO",
+  fichaje: "Control horario",
+  redireccion: "Redirección a web externa",
+  gestion_usuarios: "Gestión de usuarios",
+}
+
 export default function MiEmpresa() {
-  // usuario se obtiene del contexto de autenticación; contiene rol y datos del JWT
-  // que determinan si el usuario puede editar (admin) o solo ver la información.
   const { usuario } = useAuth()
   const [empresa, setEmpresa] = useState(null)
-  // editando controla qué vista se renderiza: formulario de edición vs. vista de solo lectura.
+  const [servicios, setServicios] = useState([])
   const [editando, setEditando] = useState(false)
   const [nombre, setNombre] = useState("")
   const [web, setWeb] = useState("")
   const [error, setError] = useState("")
-  // startsWith("admin") en vez de === "admin_total" para cubrir variantes de rol
-  // (admin_empresa, admin_support, etc.) sin tener que actualizar el frontend al añadir nuevos roles.
   const puedeEditar = usuario?.rol?.startsWith("admin")
 
-  // useEffect sin dependencias (array vacío) para que la carga de datos ocurra
-  // solo una vez al montar el componente, no en cada re-renderizado.
   useEffect(() => {
-    api.get("/empresa/mi-empresa").then((res) => {
-      setEmpresa(res.data)
-      // Se pre-rellenan los campos del formulario con los datos actuales de la empresa,
-      // para que al editar el usuario vea los valores existentes como punto de partida.
-      setNombre(res.data.nombre)
-      // web puede venir null desde la BD; se usa || "" para no mostrar "null" en el input.
-      setWeb(res.data.web || "")
-    }).catch(() => setError("Error al cargar datos de la empresa"))
+    Promise.all([
+      api.get("/empresa/mi-empresa"),
+      api.get("/empresa/mi-empresa/servicios"),
+    ])
+      .then(([resEmpresa, resServicios]) => {
+        setEmpresa(resEmpresa.data)
+        setNombre(resEmpresa.data.nombre)
+        setWeb(resEmpresa.data.web || "")
+        setServicios(resServicios.data)
+      })
+      .catch(() => setError("Error al cargar datos de la empresa"))
   }, [])
 
   // guardar es async porque la petición PATCH es una operación I/O que no debe bloquear la UI;
@@ -91,6 +97,20 @@ export default function MiEmpresa() {
           {puedeEditar && (
             <button className="btn" onClick={() => setEditando(true)}>Editar</button>
           )}
+
+          <h2 style={{ marginTop: "2rem" }}>Servicios contratados</h2>
+          <div className="servicios-lista" style={{ marginTop: "1rem" }}>
+            {servicios.map((s) => (
+              <div key={s.servicio} className="servicio-item">
+                <span className="servicio-nombre">
+                  {SERVICIOS_ETIQUETAS[s.servicio] || s.servicio}
+                </span>
+                <span className={s.activo ? "estado-activo" : "estado-inactivo"}>
+                  {s.activo ? "Activado" : "Desactivado"}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
