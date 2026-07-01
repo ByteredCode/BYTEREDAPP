@@ -3,7 +3,7 @@
 // - PointerSensor evita que clicks accidentales activen el drag
 // - SortableContext maneja el reordenamiento interno de cada columna
 import { useState, useEffect, useCallback, useMemo } from "react"
-import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from "@dnd-kit/core"
+import { DndContext, DragOverlay, PointerSensor, useDroppable, useSensor, useSensors } from "@dnd-kit/core"
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import api from "../../api/axios"
@@ -42,13 +42,15 @@ function SortableCard({ tarea, onClick, usuarioMap }) {
   // - attributes añade los atributos ARIA necesarios para accesibilidad
   // - listeners captura los eventos de puntero/ratón para iniciar el arrastre
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="kanban-card" onClick={() => onClick(tarea)}>
-      <div className="kanban-card-titulo">{tarea.titulo}</div>
-      <div className="kanban-card-meta">
-        <span className={`prioridad-badge ${prioridadClase}`}>{tarea.prioridad || "Media"}</span>
-        {tarea.fecha_limite && <span className="fecha-limite">{tarea.fecha_limite}</span>}
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="kanban-card">
+      <div className="kanban-card-content" onClick={() => onClick(tarea)}>
+        <div className="kanban-card-titulo">{tarea.titulo}</div>
+        <div className="kanban-card-meta">
+          <span className={`prioridad-badge ${prioridadClase}`}>{tarea.prioridad || "Media"}</span>
+          {tarea.fecha_limite && <span className="fecha-limite">{tarea.fecha_limite}</span>}
+        </div>
+        {tarea.asignacion && <div className="kanban-card-asignacion">{usuarioMap?.[tarea.asignacion] || `#${tarea.asignacion}`}</div>}
       </div>
-      {tarea.asignacion && <div className="kanban-card-asignacion">{usuarioMap?.[tarea.asignacion] || `#${tarea.asignacion}`}</div>}
     </div>
   )
 }
@@ -77,8 +79,9 @@ function CardPreview({ tarea }) {
 // (no se pueden mezclar entre columnas a nivel de lista, el cambio de columna
 // se maneja en handleDragEnd)
 function Columna({ id, titulo, tareas, onAgregar, onEditar, usuarioMap }) {
-  // SortableContext necesita un array plano de identificadores para gestionar
-  // el orden interno de la columna; extraemos solo los IDs de las tareas
+  // useDroppable hace que la columna sea una zona de soltado válida para @dnd-kit,
+  // necesaria para arrastrar tarjetas entre columnas (no solo dentro de la misma)
+  const { setNodeRef, isOver } = useDroppable({ id })
   const ids = tareas.map((t) => t.codigo_tarea)
 
   return (
@@ -88,9 +91,8 @@ function Columna({ id, titulo, tareas, onAgregar, onEditar, usuarioMap }) {
         <span className="kanban-count">{tareas.length}</span>
         <button className="btn-add-tarea" onClick={onAgregar} title="Agregar tarea">+</button>
       </div>
-      {/* SortableContext agrupa tarjetas ordenables dentro de la columna */}
       <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-        <div className="kanban-columna-body">
+        <div ref={setNodeRef} className={`kanban-columna-body${isOver ? " kanban-columna-over" : ""}`}>
           {tareas.map((tarea) => (
             <SortableCard key={tarea.codigo_tarea} tarea={tarea} onClick={() => onEditar(tarea)} usuarioMap={usuarioMap} />
           ))}

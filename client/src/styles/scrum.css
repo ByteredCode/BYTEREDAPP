@@ -60,6 +60,7 @@
 .kanban-card:hover { box-shadow: var(--shadow-md); }
 .kanban-card:active { cursor: grabbing; }
 .kanban-card-drag { box-shadow: var(--shadow-lg); transform: rotate(2deg) scale(1.02); }
+.kanban-columna-over { background: var(--border-light); outline: 2px dashed var(--primary); outline-offset: -2px; border-radius: var(--radius); }
 .kanban-card-titulo { font-size: 0.875rem; font-weight: 500; margin-bottom: 0.4rem; }
 .kanban-card-meta { display: flex; gap: 0.35rem; flex-wrap: wrap; align-items: center; }
 .prioridad-badge { font-size: 0.65rem; padding: 0.15rem 0.45rem; border-radius: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; }
