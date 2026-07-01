@@ -28,9 +28,11 @@ export default function AdminLayout() {
               Empresas
             </NavLink>
           )}
-          <NavLink to="/admin/usuarios" className="admin-sidebar-link">
-            Usuarios
-          </NavLink>
+          {usuario?.rol === "admin_total" && (
+            <NavLink to="/admin/usuarios" className="admin-sidebar-link">
+              Usuarios
+            </NavLink>
+          )}
           <NavLink to="/admin/tickets" className="admin-sidebar-link">
             Tickets
           </NavLink>

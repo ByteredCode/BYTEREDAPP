@@ -1,13 +1,11 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import api from "../../api/axios"
-import { useAuth } from "../../context/AuthContext"
 import Pagination from "../../components/common/Pagination"
 
 const LIMITE = 50
 
 export default function Usuarios() {
-  const { usuario } = useAuth()
   const [usuarios, setUsuarios] = useState([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState("")
@@ -15,15 +13,10 @@ export default function Usuarios() {
   const [total, setTotal] = useState(0)
 
   useEffect(() => {
-    const esAdminTotal = usuario?.rol === "admin_total"
     const skip = (pagina - 1) * LIMITE
-    const params = `?skip=${skip}&limit=${LIMITE}`
-    const urlBase = esAdminTotal
-      ? "/admin/usuarios"
-      : `/admin/empresas/${usuario.codigo_empresa}/usuarios`
 
     api
-      .get(urlBase + params)
+      .get(`/admin/usuarios?skip=${skip}&limit=${LIMITE}`)
       .then((res) => {
         setUsuarios(res.data.items)
         setTotal(res.data.total)
@@ -32,7 +25,7 @@ export default function Usuarios() {
         setError(err.response?.data?.detalle || "Error al cargar usuarios")
       })
       .finally(() => setCargando(false))
-  }, [usuario, pagina])
+  }, [pagina])
 
   async function eliminarUsuario(id) {
     if (!confirm("¿Eliminar usuario? Esta accion no se puede deshacer.")) return

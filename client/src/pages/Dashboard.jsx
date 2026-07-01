@@ -49,9 +49,7 @@ export default function Dashboard() {
           <h3>Documentos</h3>
           <p>DPD / ISO</p>
         </Link>
-        {/* La card de Administración solo se muestra si el rol empieza por "admin".
-            Se usa startsWith para cubrir variantes como "admin_total", "admin_empresa", etc. */}
-        {usuario?.rol?.startsWith("admin") && (
+        {usuario?.rol === "admin_total" && (
           <Link to="/admin/empresas" className="modulo-card">
             <h3>Administración</h3>
             <p>Empresas, usuarios y servicios</p>
