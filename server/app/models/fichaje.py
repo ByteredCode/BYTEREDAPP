@@ -17,3 +17,4 @@ class Fichaje(Base):
     hora_salida = Column(DateTime)  # NULL mientras el usuario esta fichado (sin salir)
 
     empresa = relationship("Empresa", back_populates="fichajes")
+    usuario = relationship("Usuario")
