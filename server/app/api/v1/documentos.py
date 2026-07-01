@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, UploadFile, File, Form
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Query, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -39,9 +41,11 @@ async def get_documentos(
     codigo_empresa: int = Depends(get_tenant_filter),
     usuario: Usuario = Depends(get_usuario_actual),
     pag: Paginacion = Depends(),
+    empresa_filtro: Optional[int] = Query(None, description="Filtrar por empresa (solo admin_total)"),
 ):
     es_admin = usuario.rol in ("admin_total", "admin_empresa")
-    items, total = await listar_documentos(db, codigo_empresa, usuario.codigo_usuario, es_admin, pag.skip, pag.limit)
+    filtro = empresa_filtro if (usuario.rol == "admin_total" and empresa_filtro is not None) else codigo_empresa
+    items, total = await listar_documentos(db, filtro, usuario.codigo_usuario, es_admin, pag.skip, pag.limit)
     return {"items": items, "total": total}
 
 

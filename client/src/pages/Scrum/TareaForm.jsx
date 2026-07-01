@@ -1,6 +1,7 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import api from "../../api/axios"
 import { useToast } from "../../context/ToastContext"
+import { useAuth } from "../../context/AuthContext"
 
 // Arrays fijos para los select del formulario; se definen fuera del componente
 // para que no se recree la referencia en cada renderizado
@@ -11,6 +12,32 @@ const COLUMNAS = ["Todo", "Haciendose", "En revision", "Done"]
 // la columna por defecto, la lista de sprints y callbacks para notificar cambios
 export default function TareaForm({ editando, columna, sprints, sprintActivo, onClose, onSaved }) {
   const { showToast } = useToast()
+  const { usuario } = useAuth()
+  const [usuarios, setUsuarios] = useState([])
+
+  useEffect(() => {
+    let cancel = false
+    async function cargarUsuarios() {
+      try {
+        const res = await api.get("/empresa/mi-empresa/usuarios")
+        if (!cancel) setUsuarios(res.data)
+      } catch {
+        try {
+          const res = await api.get("/admin/usuarios", { params: { limit: 200 } })
+          if (!cancel) setUsuarios(res.data.items || res.data)
+        } catch {
+          if (usuario?.codigo_empresa) {
+            try {
+              const res = await api.get(`/admin/empresas/${usuario.codigo_empresa}/usuarios`, { params: { limit: 200 } })
+              if (!cancel) setUsuarios(res.data.items || res.data)
+            } catch { /* silent */ }
+          }
+        }
+      }
+    }
+    cargarUsuarios()
+    return () => { cancel = true }
+  }, [usuario])
   // Inicializamos el formulario con los datos de la tarea a editar (si existe)
   // o con valores por defecto. Usamos || en vez de ?? porque queremos tratar
   // los strings vacíos igual que undefined (ej. fecha_limite "")
@@ -32,6 +59,7 @@ export default function TareaForm({ editando, columna, sprints, sprintActivo, on
       // si enviamos string vacío, la BD almacenaría '' en lugar de NULL
       if (!payload.fecha_limite) payload.fecha_limite = null
       if (!payload.asignacion) payload.asignacion = null
+      else payload.asignacion = Number(payload.asignacion)
       if (!payload.codigo_sprint) payload.codigo_sprint = null
       if (!payload.descripcion) payload.descripcion = null
 
@@ -83,8 +111,13 @@ export default function TareaForm({ editando, columna, sprints, sprintActivo, on
               <input type="date" value={form.fecha_limite} onChange={(e) => setForm({ ...form, fecha_limite: e.target.value })} />
             </div>
             <div className="campo">
-              <label>Asignado a (ID usuario)</label>
-              <input type="number" value={form.asignacion} onChange={(e) => setForm({ ...form, asignacion: e.target.value })} />
+              <label>Asignado a</label>
+              <select value={form.asignacion} onChange={(e) => setForm({ ...form, asignacion: e.target.value })}>
+                <option value="">Sin asignar</option>
+                {usuarios.map((u) => (
+                  <option key={u.codigo_usuario} value={u.codigo_usuario}>{u.nombre}</option>
+                ))}
+              </select>
             </div>
           </div>
           <div className="campo">

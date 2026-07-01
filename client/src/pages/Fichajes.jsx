@@ -1,11 +1,15 @@
 import { useState, useEffect, useCallback } from "react"
 import api from "../api/axios"
 import { useToast } from "../context/ToastContext"
+import { useAuth } from "../context/AuthContext"
 import LoadingSpinner from "../components/common/LoadingSpinner"
 import Pagination from "../components/common/Pagination"
 
 export default function Fichajes() {
   const { showToast } = useToast()
+  const { usuario } = useAuth()
+  const esAdmin = usuario?.rol?.startsWith("admin")
+  const esAdminTotal = usuario?.rol === "admin_total"
   // fichajes: historial completo; abierto: fichaje activo (entrada sin salida); resumen: estadísticas agregadas
   const [fichajes, setFichajes] = useState([])
   const [abierto, setAbierto] = useState(null)
@@ -13,12 +17,27 @@ export default function Fichajes() {
   const [cargando, setCargando] = useState(true)
   const [pagina, setPagina] = useState(1)
   const [totalPaginas, setTotalPaginas] = useState(1)
+  const [empresas, setEmpresas] = useState([])
+  const [empresaFiltro, setEmpresaFiltro] = useState("")
+
+  // Cargar empresas solo para admin_total (para el filtro)
+  useEffect(() => {
+    if (esAdminTotal) {
+      api.get("/admin/empresas", { params: { limit: 200 } })
+        .then((res) => setEmpresas(res.data.items || res.data))
+        .catch(() => {})
+    }
+  }, [esAdminTotal])
 
   const fetchData = useCallback(async () => {
     setCargando(true)
     try {
+      const params = { skip: (pagina - 1) * 50, limit: 50 }
+      if (esAdminTotal && empresaFiltro) {
+        params.empresa_filtro = Number(empresaFiltro)
+      }
       const [resFichajes, resActual, resResumen] = await Promise.allSettled([
-        api.get("/fichajes", { params: { skip: (pagina - 1) * 50, limit: 50 } }),
+        api.get("/fichajes", { params }),
         api.get("/fichajes/actual"),
         api.get("/fichajes/resumen"),
       ])
@@ -31,7 +50,7 @@ export default function Fichajes() {
       if (resResumen.status === "fulfilled") setResumen(resResumen.value.data)
     } catch { /* ignore */ }
     finally { setCargando(false) }
-  }, [pagina])
+  }, [pagina, empresaFiltro, esAdminTotal])
 
   // Se ejecuta al montar el componente; la dependencia fetchData (memoizada) es estable.
   useEffect(() => { fetchData() }, [fetchData])
@@ -53,7 +72,10 @@ export default function Fichajes() {
   // Se abre la URL en una pestaña nueva para que el navegador maneje la descarga
   // del CSV directamente, sin tener que procesar el blob ni crear un enlace temporal.
   function exportarCSV() {
-    const url = api.defaults?.baseURL ? api.defaults.baseURL + "/fichajes/exportar" : "/fichajes/exportar"
+    let url = api.defaults?.baseURL ? api.defaults.baseURL + "/fichajes/exportar" : "/fichajes/exportar"
+    if (esAdminTotal && empresaFiltro) {
+      url += `?empresa_filtro=${empresaFiltro}`
+    }
     window.open(url, "_blank")
   }
 
@@ -98,6 +120,17 @@ export default function Fichajes() {
         </div>
       )}
 
+      {esAdminTotal && (
+        <div className="filtro-empresa">
+          <select value={empresaFiltro} onChange={(e) => { setEmpresaFiltro(e.target.value); setPagina(1) }}>
+            <option value="">Todas las empresas</option>
+            {empresas.map((e) => (
+              <option key={e.codigo_empresa} value={e.codigo_empresa}>{e.nombre}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
       <div className="pagina-admin-header">
         <button className="btn btn-sm" onClick={exportarCSV}>Exportar CSV</button>
       </div>
@@ -109,10 +142,11 @@ export default function Fichajes() {
             <th>Entrada</th>
             <th>Salida</th>
             <th>Duración</th>
+            {esAdmin && <th>Usuario</th>}
           </tr>
         </thead>
         <tbody>
-          {fichajes.length === 0 && <tr><td colSpan="4" className="sin-datos">Sin fichajes</td></tr>}
+          {fichajes.length === 0 && <tr><td colSpan={esAdmin ? 5 : 4} className="sin-datos">Sin fichajes</td></tr>}
           {fichajes.map((f) => {
             // Conversión de ISO 8601 (UTC) a objeto Date para formatear en locale local;
             // el backend almacena en UTC pero el usuario ve su propia zona horaria.
@@ -129,6 +163,7 @@ export default function Fichajes() {
                 <td>{entrada.toLocaleString()}</td>
                 <td>{salida ? salida.toLocaleString() : "—"}</td>
                 <td>{duracion}</td>
+                {esAdmin && <td>{f.usuario_nombre || "—"}</td>}
               </tr>
             )
           })}

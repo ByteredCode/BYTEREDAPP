@@ -1,15 +1,18 @@
-from fastapi import APIRouter, Depends
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import PlainTextResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db, get_tenant_filter, get_usuario_actual
 from app.models.usuario import Usuario
 from app.schemas.admin import Paginacion
-from app.schemas.fichaje import FichajeResumenResponse, FichajeResponse
+from app.schemas.fichaje import FichajeAdminResponse, FichajeResumenResponse, FichajeResponse
 from app.services.fichaje_service import (
     fichaje_abierto,
     generar_csv,
     listar_fichajes,
+    listar_fichajes_admin,
     obtener_resumen,
     registrar_entrada,
     registrar_salida,
@@ -24,9 +27,20 @@ async def get_fichajes(
     codigo_empresa: int = Depends(get_tenant_filter),
     usuario: Usuario = Depends(get_usuario_actual),
     pag: Paginacion = Depends(),
+    empresa_filtro: Optional[int] = Query(None, description="Filtrar por empresa (solo admin_total)"),
 ):
-    items, total = await listar_fichajes(db, usuario.codigo_usuario, codigo_empresa, pag.skip, pag.limit)
-    return {"items": items, "total": total}
+    # Los administradores ven fichajes de todos los usuarios de su ambito,
+    # mientras que los usuarios regulares solo ven sus propios fichajes.
+    if usuario.rol == "admin_total":
+        filtro = empresa_filtro if empresa_filtro is not None else None
+        items, total = await listar_fichajes_admin(db, filtro, pag.skip, pag.limit)
+        return {"items": items, "total": total}
+    elif usuario.rol == "admin_empresa":
+        items, total = await listar_fichajes_admin(db, codigo_empresa, pag.skip, pag.limit)
+        return {"items": items, "total": total}
+    else:
+        items, total = await listar_fichajes(db, usuario.codigo_usuario, codigo_empresa, pag.skip, pag.limit)
+        return {"items": items, "total": total}
 
 
 @router.get("/actual", response_model=FichajeResponse)
@@ -58,11 +72,15 @@ async def get_exportar(
     db: AsyncSession = Depends(get_db),
     codigo_empresa: int = Depends(get_tenant_filter),
     usuario: Usuario = Depends(get_usuario_actual),
+    empresa_filtro: Optional[int] = Query(None, description="Filtrar por empresa (solo admin_total)"),
 ):
-    # Usamos PlainTextResponse en vez de StreamingResponse porque el CSV
-    # se genera completo en memoria (volumen pequeño) y así forzamos la
-    # descarga con la cabecera Content-Disposition adecuada
-    fichajes, _ = await listar_fichajes(db, usuario.codigo_usuario, codigo_empresa, limit=99999)
+    if usuario.rol == "admin_total":
+        filtro = empresa_filtro if empresa_filtro is not None else None
+        fichajes, _ = await listar_fichajes_admin(db, filtro, limit=99999)
+    elif usuario.rol == "admin_empresa":
+        fichajes, _ = await listar_fichajes_admin(db, codigo_empresa, limit=99999)
+    else:
+        fichajes, _ = await listar_fichajes(db, usuario.codigo_usuario, codigo_empresa, limit=99999)
     csv = generar_csv(fichajes)
     return PlainTextResponse(
         content=csv,

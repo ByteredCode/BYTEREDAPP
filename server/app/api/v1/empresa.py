@@ -15,6 +15,13 @@ from app.services import admin_service
 router = APIRouter(prefix="/empresa", tags=["Empresa"])
 
 
+class UsuarioSimpleResponse(BaseModel):
+    codigo_usuario: int
+    nombre: str
+
+    model_config = {"from_attributes": True}
+
+
 class MiEmpresaUpdate(BaseModel):
     # Modelo separado para que PATCH solo acepte los campos actualizables
     # y no exponga campos internos como codigo_empresa o fecha_creacion
@@ -71,6 +78,17 @@ async def actualizar_mi_empresa(
     await db.commit()
     await db.refresh(empresa)
     return empresa
+
+
+@router.get("/mi-empresa/usuarios", response_model=list[UsuarioSimpleResponse])
+async def listar_usuarios_mi_empresa(
+    usuario: Usuario = Depends(get_usuario_actual),
+    db: AsyncSession = Depends(get_db),
+):
+    resultado = await db.execute(
+        select(Usuario).where(Usuario.codigo_empresa == usuario.codigo_empresa)
+    )
+    return resultado.scalars().all()
 
 
 @router.get("/mi-empresa/servicios", response_model=list[ServicioResponse])

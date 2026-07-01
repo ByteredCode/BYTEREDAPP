@@ -7,6 +7,7 @@ import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors } from "@
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import api from "../../api/axios"
+import { useAuth } from "../../context/AuthContext"
 import LoadingSpinner from "../../components/common/LoadingSpinner"
 import TareaForm from "./TareaForm"
 
@@ -23,7 +24,7 @@ const COLUMNAS = [
 // Cada tarjeta es un componente independiente con su propio hook useSortable.
 // Lo separamos de Columna para que React solo re-renderice la tarjeta que se
 // está arrastrando, no todas las tarjetas del tablero
-function SortableCard({ tarea, onClick }) {
+function SortableCard({ tarea, onClick, usuarioMap }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: tarea.codigo_tarea,
   })
@@ -47,7 +48,7 @@ function SortableCard({ tarea, onClick }) {
         <span className={`prioridad-badge ${prioridadClase}`}>{tarea.prioridad || "Media"}</span>
         {tarea.fecha_limite && <span className="fecha-limite">{tarea.fecha_limite}</span>}
       </div>
-      {tarea.asignacion && <div className="kanban-card-asignacion">#{tarea.asignacion}</div>}
+      {tarea.asignacion && <div className="kanban-card-asignacion">{usuarioMap?.[tarea.asignacion] || `#${tarea.asignacion}`}</div>}
     </div>
   )
 }
@@ -75,7 +76,7 @@ function CardPreview({ tarea }) {
 // sepa que las tarjetas solo se reordenan dentro de su propia columna
 // (no se pueden mezclar entre columnas a nivel de lista, el cambio de columna
 // se maneja en handleDragEnd)
-function Columna({ id, titulo, tareas, onAgregar, onEditar }) {
+function Columna({ id, titulo, tareas, onAgregar, onEditar, usuarioMap }) {
   // SortableContext necesita un array plano de identificadores para gestionar
   // el orden interno de la columna; extraemos solo los IDs de las tareas
   const ids = tareas.map((t) => t.codigo_tarea)
@@ -91,7 +92,7 @@ function Columna({ id, titulo, tareas, onAgregar, onEditar }) {
       <SortableContext items={ids} strategy={verticalListSortingStrategy}>
         <div className="kanban-columna-body">
           {tareas.map((tarea) => (
-            <SortableCard key={tarea.codigo_tarea} tarea={tarea} onClick={() => onEditar(tarea)} />
+            <SortableCard key={tarea.codigo_tarea} tarea={tarea} onClick={() => onEditar(tarea)} usuarioMap={usuarioMap} />
           ))}
         </div>
       </SortableContext>
@@ -110,6 +111,9 @@ export default function Board() {
   const [editando, setEditando] = useState(null)
   const [columnaForm, setColumnaForm] = useState("Todo")  // Columna preseleccionada al crear tarea
   const [cargando, setCargando] = useState(true)
+  const { usuario } = useAuth()
+  const [usuarios, setUsuarios] = useState([])
+  const [filtroUsuario, setFiltroUsuario] = useState("")
 
   // PointerSensor con distance:5 para que un click normal NO inicie el drag.
   // El usuario debe mover el ratón al menos 5px para que se active el arrastre,
@@ -140,8 +144,28 @@ export default function Board() {
     }
   }, [])
 
+  const fetchUsuarios = useCallback(async () => {
+    try {
+      const res = await api.get("/empresa/mi-empresa/usuarios")
+      setUsuarios(res.data)
+    } catch {
+      try {
+        const res = await api.get("/admin/usuarios", { params: { limit: 200 } })
+        setUsuarios(res.data.items || res.data)
+      } catch {
+        if (usuario?.codigo_empresa) {
+          try {
+            const res = await api.get(`/admin/empresas/${usuario.codigo_empresa}/usuarios`, { params: { limit: 200 } })
+            setUsuarios(res.data.items || res.data)
+          } catch { /* silent */ }
+        }
+      }
+    }
+  }, [usuario])
+
   useEffect(() => { fetchTablero() }, [fetchTablero])
   useEffect(() => { fetchSprints() }, [fetchSprints])
+  useEffect(() => { fetchUsuarios() }, [fetchUsuarios])
 
   // Aplanamos el objeto columnas en un único array para poder buscar tareas
   // por ID en una sola pasada en vez de iterar columna por columna.
@@ -155,6 +179,27 @@ export default function Board() {
   const activeTarea = useMemo(() => {
     return todasLasTareas.find((t) => t.codigo_tarea === activeId)
   }, [todasLasTareas, activeId])
+
+  // Mapa de codigo_usuario -> nombre para mostrar el nombre en las tarjetas
+  // en vez del ID numerico
+  const usuarioMap = useMemo(() => {
+    const map = {}
+    usuarios.forEach((u) => { map[u.codigo_usuario] = u.nombre })
+    return map
+  }, [usuarios])
+
+  // Filtro por usuario: si hay un usuario seleccionado, filtramos las tareas
+  // de cada columna por su asignacion. El filtro es solo visual; el drag & drop
+  // y el resto de la lógica interna siguen usando el conjunto completo de datos.
+  const columnasFiltradas = useMemo(() => {
+    if (!filtroUsuario) return columnas
+    const usuarioNum = Number(filtroUsuario)
+    const filtradas = {}
+    for (const [colId, tareas] of Object.entries(columnas)) {
+      filtradas[colId] = tareas.filter((t) => t.asignacion === usuarioNum)
+    }
+    return filtradas
+  }, [columnas, filtroUsuario])
 
   // Guardamos el ID de la tarea al empezar el arrastre para:
   // 1) Mostrar el DragOverlay con los datos de la tarea mientras se mueve
@@ -249,6 +294,12 @@ export default function Board() {
               <option key={s.codigo_sprint} value={s.codigo_sprint}>{s.nombre}</option>
             ))}
           </select>
+          <select value={filtroUsuario} onChange={(e) => setFiltroUsuario(e.target.value)}>
+            <option value="">Todos los usuarios</option>
+            {usuarios.map((u) => (
+              <option key={u.codigo_usuario} value={u.codigo_usuario}>{u.nombre}</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -259,9 +310,10 @@ export default function Board() {
               key={col.id}
               id={col.id}
               titulo={col.titulo}
-              tareas={columnas[col.id] || []}
+              tareas={columnasFiltradas[col.id] || []}
               onAgregar={() => abrirForm(col.id)}
               onEditar={editarTarea}
+              usuarioMap={usuarioMap}
             />
           ))}
         </div>

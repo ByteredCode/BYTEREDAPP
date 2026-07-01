@@ -5,6 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.fichaje import Fichaje
+from app.models.usuario import Usuario
 from app.schemas.fichaje import FichajeResumenResponse
 
 
@@ -49,6 +50,51 @@ async def listar_fichajes(db: AsyncSession, codigo_usuario: int, codigo_empresa:
         select(Fichaje).where(*where).order_by(Fichaje.hora_entrada.desc()).offset(skip).limit(limit)
     )
     return resultado.scalars().all(), total
+
+
+async def listar_fichajes_admin(db: AsyncSession, codigo_empresa: int | None = None, skip: int = 0, limit: int = 50) -> tuple[list, int]:
+    # Vista para administradores: devuelve fichajes de toda la empresa (o global
+    # si codigo_empresa es None) con el nombre del usuario mediante JOIN.
+    # Esto permite a admin_total ver fichajes de cualquier empresa y a
+    # admin_empresa ver los de su propia compañia.
+    where = []
+    if codigo_empresa is not None:
+        where.append(Fichaje.codigo_empresa == codigo_empresa)
+
+    count_query = (
+        select(func.count(Fichaje.id_fichaje))
+        .select_from(Fichaje)
+        .join(Usuario, Fichaje.codigo_usuario == Usuario.codigo_usuario)
+    )
+    if where:
+        count_query = count_query.where(*where)
+    total = (await db.execute(count_query)).scalar()
+
+    query = (
+        select(Fichaje, Usuario.nombre)
+        .join(Usuario, Fichaje.codigo_usuario == Usuario.codigo_usuario)
+        .order_by(Fichaje.hora_entrada.desc())
+        .offset(skip)
+        .limit(limit)
+    )
+    if where:
+        query = query.where(*where)
+
+    resultado = await db.execute(query)
+    rows = resultado.all()
+
+    items = [
+        {
+            "id_fichaje": fichaje.id_fichaje,
+            "codigo_empresa": fichaje.codigo_empresa,
+            "codigo_usuario": fichaje.codigo_usuario,
+            "usuario_nombre": nombre,
+            "hora_entrada": fichaje.hora_entrada,
+            "hora_salida": fichaje.hora_salida,
+        }
+        for fichaje, nombre in rows
+    ]
+    return items, total
 
 
 async def fichaje_abierto(db: AsyncSession, codigo_usuario: int, codigo_empresa: int) -> Fichaje | None:
@@ -98,13 +144,22 @@ async def obtener_resumen(db: AsyncSession, codigo_usuario: int, codigo_empresa:
     )
 
 
-def generar_csv(fichajes: list[Fichaje]) -> str:
+def generar_csv(fichajes: list) -> str:
     lineas = ["id,usuario,empresa,entrada,salida,duracion_min"]
     for f in fichajes:
-        entrada = f.hora_entrada.isoformat()
-        salida = f.hora_salida.isoformat() if f.hora_salida else ""
-        duracion = ""
-        if f.hora_salida:
-            duracion = str(int((f.hora_salida - f.hora_entrada).total_seconds() / 60))
-        lineas.append(f"{f.id_fichaje},{f.codigo_usuario},{f.codigo_empresa},{entrada},{salida},{duracion}")
+        if isinstance(f, dict):
+            fid = f["id_fichaje"]
+            uid = f["codigo_usuario"]
+            eid = f["codigo_empresa"]
+            entrada = f["hora_entrada"].isoformat()
+            salida = f["hora_salida"].isoformat() if f.get("hora_salida") else ""
+            duracion = str(int((f["hora_salida"] - f["hora_entrada"]).total_seconds() / 60)) if f.get("hora_salida") else ""
+        else:
+            fid = f.id_fichaje
+            uid = f.codigo_usuario
+            eid = f.codigo_empresa
+            entrada = f.hora_entrada.isoformat()
+            salida = f.hora_salida.isoformat() if f.hora_salida else ""
+            duracion = str(int((f.hora_salida - f.hora_entrada).total_seconds() / 60)) if f.hora_salida else ""
+        lineas.append(f"{fid},{uid},{eid},{entrada},{salida},{duracion}")
     return "\n".join(lineas)

@@ -34,11 +34,11 @@ export default function App() {
         <Routes>
           {/* Rutas publicas (sin layout ni autenticacion) */}
           <Route path="/login" element={<Login />} />
-          {/* NuevoTicket es público porque clientes externos pueden reportar incidencias sin registrarse */}
-          <Route path="/tickets/nuevo" element={<NuevoTicket />} />
 
           {/* Layout como ruta "padre" sin path: solo aporta el navbar y <Outlet /> para las hijas */}
           <Route element={<Layout />}>
+            {/* NuevoTicket es público pero dentro de Layout para que usuarios logueados no pierdan el navbar */}
+            <Route path="/tickets/nuevo" element={<NuevoTicket />} />
             <Route
               path="/dashboard"
               element={

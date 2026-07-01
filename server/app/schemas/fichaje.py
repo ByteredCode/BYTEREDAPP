@@ -23,6 +23,20 @@ class FichajeResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class FichajeAdminResponse(BaseModel):
+    # Esquema para la vista de administradores: incluye el nombre del usuario
+    # (obtenido mediante JOIN con la tabla usuario) para identificar visualmente
+    # a cada persona en el listado de fichajes de la empresa.
+    id_fichaje: int
+    codigo_empresa: int
+    codigo_usuario: int
+    usuario_nombre: str
+    hora_entrada: datetime
+    hora_salida: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+
 class FichajeResumenResponse(BaseModel):
     # Segundo nivel de detalle: en lugar de devolver todos los fichajes
     # del día, devolvemos métricas agregadas (horas totales) que son
