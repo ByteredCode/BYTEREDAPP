@@ -15,7 +15,8 @@ from app.core.security import (
 from app.models.usuario import Usuario
 from app.schemas.auth import LoginRequest, LogoutRequest, TokenResponse, UsuarioResponse
 from app.services.auth_service import cerrar_sesion, iniciar_sesion
-from app.services.fichaje_service import registrar_entrada
+from sqlalchemy import select
+from app.models.usuario import Usuario
 
 logger = logging.getLogger("byteredapp.auth")
 router = APIRouter(tags=["Auth"])
@@ -49,11 +50,30 @@ async def refresh(request: Request, refresh_token: str = Body(..., embed=True), 
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token invalido")
     jti_anterior = payload.get("jti")
     if jti_anterior:
-        # Invalidamos el refresh anterior para que no pueda reutilizarse (rotation)
         await agregar_a_blocklist(jti_anterior)
     access_token = crear_access_token({"sub": str(payload["sub"]), "empresa": payload.get("empresa")})
     nuevo_refresh = crear_refresh_token({"sub": str(payload["sub"])})
-    return TokenResponse(access_token=access_token, refresh_token=nuevo_refresh)
+    result = await db.execute(
+        select(Usuario).where(Usuario.codigo_usuario == int(payload["sub"])).limit(1)
+    )
+    usuario = result.scalar_one_or_none()
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=nuevo_refresh,
+        usuario=UsuarioResponse(
+            codigo_usuario=usuario.codigo_usuario,
+            correo=usuario.correo,
+            nombre=usuario.nombre,
+            rol=usuario.rol,
+            codigo_empresa=usuario.codigo_empresa,
+        ) if usuario else UsuarioResponse(
+            codigo_usuario=0,
+            correo="",
+            nombre="",
+            rol="",
+            codigo_empresa=0,
+        ),
+    )
 
 
 @router.post("/auth/logout", status_code=204)
