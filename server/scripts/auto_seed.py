@@ -36,15 +36,15 @@ async def auto_seed():
         logger.info("Empresa creada: %s (id %s)", empresa.nombre, empresa.codigo_empresa)
 
         admin = Usuario(
-            correo="admin@byteredapp.com",
-            contrasena=hash_contrasena("Admin1234"),
-            nombre="Admin ByteRed",
+            correo="antonio@bytered.es",
+            contrasena=hash_contrasena("admin1234A"),
+            nombre="Antonio",
             rol="admin_empresa",
             codigo_empresa=empresa.codigo_empresa,
         )
         session.add(admin)
         await session.flush()
-        logger.info("Admin creado: admin@byteredapp.com / Admin1234")
+        logger.info("Admin creado: antonio@bytered.es / admin1234A")
 
         await session.commit()
         logger.info("Seed automático completado")
