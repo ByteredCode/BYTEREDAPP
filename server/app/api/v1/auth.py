@@ -22,14 +22,23 @@ router = APIRouter(tags=["Auth"])
 
 
 @router.post("/auth/login", response_model=TokenResponse)
-# Rate limiting a 10 intentos/minuto por IP para mitigar ataques de fuerza bruta
 @limiter.limit("10/minute")
 async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends(get_db)):
     resultado = await iniciar_sesion(db, correo=body.correo, contrasena=body.contrasena)
     usuario = resultado["usuario"]
     logger.info("Login exitoso: usuario %s, empresa %s", usuario.codigo_usuario, usuario.codigo_empresa)
-    # Devolvemos tokens y no el usuario: el frontend almacena el JWT y lo envia en cada request posterior
-    return resultado["tokens"]
+    return TokenResponse(
+        access_token=resultado["tokens"]["access_token"],
+        refresh_token=resultado["tokens"]["refresh_token"],
+        token_type="bearer",
+        usuario=UsuarioResponse(
+            codigo_usuario=usuario.codigo_usuario,
+            correo=usuario.correo,
+            nombre=usuario.nombre,
+            rol=usuario.rol,
+            codigo_empresa=usuario.codigo_empresa,
+        ),
+    )
 
 
 @router.post("/auth/refresh", response_model=TokenResponse)

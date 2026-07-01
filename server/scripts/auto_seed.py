@@ -31,7 +31,7 @@ async def auto_seed():
         total_empresas = await session.scalar(select(func.count(Empresa.codigo_empresa)))
         if total_empresas and total_empresas > 0:
             admin = await session.scalar(
-                select(Usuario).where(Usuario.rol == "admin_empresa").limit(1)
+                select(Usuario).where(Usuario.rol == "admin_total").limit(1)
             )
             if admin:
                 admin.correo = ADMIN_CORREO
@@ -50,7 +50,7 @@ async def auto_seed():
                 correo=ADMIN_CORREO,
                 contrasena=hash_contrasena(ADMIN_CONTRASENA),
                 nombre=ADMIN_NOMBRE,
-                rol="admin_empresa",
+                rol="admin_total",
                 codigo_empresa=empresa.codigo_empresa,
             )
             session.add(admin)

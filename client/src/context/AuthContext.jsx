@@ -32,14 +32,11 @@ export function AuthProvider({ children }) {
   }, [])
 
   const login = async (correo, contrasena) => {
-    // El backend devuelve los tokens; los guardamos en localStorage para que sobrevivan al refresco de pagina
     const res = await api.post("/auth/login", { correo, contrasena })
     localStorage.setItem("access_token", res.data.access_token)
     localStorage.setItem("refresh_token", res.data.refresh_token)
-    // Tras guardar los tokens, pedimos el perfil completo para tener el objeto 'usuario' disponible en toda la app
-    const me = await api.get("/auth/me")
-    setUsuario(me.data)
-    return me.data
+    setUsuario(res.data.usuario)
+    return res.data.usuario
   }
 
   const logout = async () => {

@@ -110,7 +110,11 @@ async def listar_usuarios_por_empresa(
     usuario: Usuario = Depends(get_usuario_actual),
     db: AsyncSession = Depends(get_db),
 ):
-    _verificar_acceso_empresa(usuario, codigo_empresa)
+    if usuario.rol != "admin_total":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Solo el administrador principal puede gestionar usuarios",
+        )
     items, total = await admin_service.listar_usuarios(db, codigo_empresa=codigo_empresa, skip=pag.skip, limit=pag.limit)
     return {"items": items, "total": total}
 
@@ -121,10 +125,12 @@ async def listar_usuarios(
     usuario: Usuario = Depends(get_usuario_actual),
     db: AsyncSession = Depends(get_db),
 ):
-    if usuario.rol == "admin_total":
-        items, total = await admin_service.listar_usuarios(db, skip=pag.skip, limit=pag.limit)
-    else:
-        items, total = await admin_service.listar_usuarios(db, codigo_empresa=usuario.codigo_empresa, skip=pag.skip, limit=pag.limit)
+    if usuario.rol != "admin_total":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Solo el administrador principal puede gestionar usuarios",
+        )
+    items, total = await admin_service.listar_usuarios(db, skip=pag.skip, limit=pag.limit)
     return {"items": items, "total": total}
 
 
@@ -134,16 +140,12 @@ async def crear_usuario(
     usuario: Usuario = Depends(get_usuario_actual),
     db: AsyncSession = Depends(get_db),
 ):
-    # admin_total puede crear usuarios en cualquier empresa;
-    # admin_empresa solo en la suya propia, y ademas se verifica que el body coincida
-    if usuario.rol == "admin_total":
-        return await admin_service.crear_usuario_admin(db, body)
-    if usuario.rol == "admin_empresa" and body.codigo_empresa == usuario.codigo_empresa:
-        return await admin_service.crear_usuario_admin(db, body)
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="No tienes permisos para crear usuarios en esta empresa",
-    )
+    if usuario.rol != "admin_total":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Solo el administrador principal puede crear usuarios",
+        )
+    return await admin_service.crear_usuario_admin(db, body)
 
 
 @router.put("/usuarios/{codigo_usuario}", response_model=UsuarioAdminResponse)
@@ -153,23 +155,12 @@ async def actualizar_usuario(
     usuario: Usuario = Depends(get_usuario_actual),
     db: AsyncSession = Depends(get_db),
 ):
-    # Primero obtenemos el usuario a modificar para validar que existe y saber su empresa
-    usuario_modificar = await admin_service.obtener_usuario_por_id(db, codigo_usuario)
-    if not usuario_modificar:
+    if usuario.rol != "admin_total":
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Usuario no encontrado",
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Solo el administrador principal puede modificar usuarios",
         )
-    # Jerarquia de permisos: admin_total puede modificar cualquier usuario;
-    # admin_empresa solo si pertenece a su misma empresa
-    if usuario.rol == "admin_total":
-        return await admin_service.actualizar_usuario(db, codigo_usuario, body)
-    if usuario.rol == "admin_empresa" and usuario_modificar.codigo_empresa == usuario.codigo_empresa:
-        return await admin_service.actualizar_usuario(db, codigo_usuario, body)
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="No tienes permisos para modificar este usuario",
-    )
+    return await admin_service.actualizar_usuario(db, codigo_usuario, body)
 
 
 @router.delete("/usuarios/{codigo_usuario}", status_code=status.HTTP_204_NO_CONTENT)
@@ -178,23 +169,12 @@ async def eliminar_usuario(
     usuario: Usuario = Depends(get_usuario_actual),
     db: AsyncSession = Depends(get_db),
 ):
-    # Misma logica que actualizar: primero comprobamos que el usuario existe y a que empresa pertenece
-    usuario_eliminar = await admin_service.obtener_usuario_por_id(db, codigo_usuario)
-    if not usuario_eliminar:
+    if usuario.rol != "admin_total":
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Usuario no encontrado",
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Solo el administrador principal puede eliminar usuarios",
         )
-    if usuario.rol == "admin_total":
-        await admin_service.eliminar_usuario(db, codigo_usuario)
-        return
-    if usuario.rol == "admin_empresa" and usuario_eliminar.codigo_empresa == usuario.codigo_empresa:
-        await admin_service.eliminar_usuario(db, codigo_usuario)
-        return
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="No tienes permisos para eliminar este usuario",
-    )
+    await admin_service.eliminar_usuario(db, codigo_usuario)
 
 
 # ────────────────────────────── SERVICIOS ──────────────────────────────

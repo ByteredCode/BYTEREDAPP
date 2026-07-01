@@ -28,9 +28,8 @@ class LogoutRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str
-    # El esquema OAuth2 exige este campo; lo fijamos con un valor
-    # constante porque este backend solo emite tokens tipo "bearer".
     token_type: str = "bearer"
+    usuario: UsuarioResponse
 
 
 class UsuarioResponse(BaseModel):
