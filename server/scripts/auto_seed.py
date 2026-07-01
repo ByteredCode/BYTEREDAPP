@@ -29,23 +29,11 @@ async def auto_seed():
 
     async with Session() as session:
         total_empresas = await session.scalar(select(func.count(Empresa.codigo_empresa)))
-        if total_empresas and total_empresas > 0:
-            admin = await session.scalar(
-                select(Usuario).where(Usuario.rol == "admin_total").limit(1)
-            )
-            if admin:
-                admin.correo = ADMIN_CORREO
-                admin.contrasena = hash_contrasena(ADMIN_CONTRASENA)
-                admin.nombre = ADMIN_NOMBRE
-                await session.commit()
-                logger.info("Admin actualizado: %s / %s", ADMIN_CORREO, ADMIN_CONTRASENA)
-                await engine.dispose()
-                return
-            empresa = await session.scalar(select(Empresa).limit(1))
-            if not empresa:
-                logger.info("No hay empresas en la BD")
-                await engine.dispose()
-                return
+        if not total_empresas or total_empresas == 0:
+            empresa = Empresa(nombre="ByteRed Solutions SL")
+            session.add(empresa)
+            await session.flush()
+            logger.info("Empresa creada: %s (id %s)", empresa.nombre, empresa.codigo_empresa)
             admin = Usuario(
                 correo=ADMIN_CORREO,
                 contrasena=hash_contrasena(ADMIN_CONTRASENA),
@@ -56,21 +44,48 @@ async def auto_seed():
             session.add(admin)
             await session.commit()
             logger.info("Admin creado: %s / %s", ADMIN_CORREO, ADMIN_CONTRASENA)
-        else:
-            empresa = Empresa(nombre="ByteRed Solutions SL")
-            session.add(empresa)
-            await session.flush()
-            logger.info("Empresa creada: %s (id %s)", empresa.nombre, empresa.codigo_empresa)
-            admin = Usuario(
-                correo=ADMIN_CORREO,
-                contrasena=hash_contrasena(ADMIN_CONTRASENA),
-                nombre=ADMIN_NOMBRE,
-                rol="admin_empresa",
-                codigo_empresa=empresa.codigo_empresa,
-            )
-            session.add(admin)
+            await engine.dispose()
+            return
+
+        existe = await session.scalar(
+            select(Usuario).where(Usuario.correo == ADMIN_CORREO).limit(1)
+        )
+        if existe:
+            existe.rol = "admin_total"
+            existe.contrasena = hash_contrasena(ADMIN_CONTRASENA)
+            existe.nombre = ADMIN_NOMBRE
             await session.commit()
-            logger.info("Admin creado: %s / %s", ADMIN_CORREO, ADMIN_CONTRASENA)
+            logger.info("Admin actualizado (email existente): %s / %s", ADMIN_CORREO, ADMIN_CONTRASENA)
+            await engine.dispose()
+            return
+
+        admin = await session.scalar(
+            select(Usuario).where(Usuario.rol == "admin_total").limit(1)
+        )
+        if admin:
+            admin.correo = ADMIN_CORREO
+            admin.contrasena = hash_contrasena(ADMIN_CONTRASENA)
+            admin.nombre = ADMIN_NOMBRE
+            await session.commit()
+            logger.info("Admin actualizado: %s / %s", ADMIN_CORREO, ADMIN_CONTRASENA)
+            await engine.dispose()
+            return
+
+        empresa = await session.scalar(select(Empresa).limit(1))
+        if not empresa:
+            logger.info("No hay empresas en la BD")
+            await engine.dispose()
+            return
+        admin = Usuario(
+            correo=ADMIN_CORREO,
+            contrasena=hash_contrasena(ADMIN_CONTRASENA),
+            nombre=ADMIN_NOMBRE,
+            rol="admin_total",
+            codigo_empresa=empresa.codigo_empresa,
+        )
+        session.add(admin)
+        await session.commit()
+        logger.info("Admin creado: %s / %s", ADMIN_CORREO, ADMIN_CONTRASENA)
 
         logger.info("Seed automático completado")
 
