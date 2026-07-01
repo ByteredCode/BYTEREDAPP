@@ -138,7 +138,7 @@ export default function Board() {
   const fetchSprints = useCallback(async () => {
     try {
       const res = await api.get("/scrum/sprints")
-      setSprints(res.data)
+      setSprints(res.data.items || res.data)
     } catch {
       // ignore
     }
