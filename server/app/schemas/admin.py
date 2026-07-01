@@ -45,11 +45,8 @@ class UsuarioCreate(BaseModel):
 
 
 class UsuarioUpdate(BaseModel):
-    # Excluimos 'contrasena' a propósito: en una edición desde el panel
-    # admin no queremos sobrescribir la contraseña accidentalmente si el
-    # formulario no la incluye. El cambio de contraseña tiene su propio
-    # endpoint específico.
     nombre: Optional[str] = None
+    contrasena: Optional[str] = None
     rol: Optional[str] = None
 
 

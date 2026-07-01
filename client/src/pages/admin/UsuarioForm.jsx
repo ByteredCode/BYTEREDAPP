@@ -103,14 +103,13 @@ export default function UsuarioForm() {
     setError("")
 
     try {
-      // Separamos la contraseña del objeto base porque en edición no debe enviarse (el backend la ignoraría igual, pero evitamos exponerla en la request)
       const datos = {
         correo: correo.trim(),
         nombre: nombre.trim(),
         rol,
         codigo_empresa: codigoEmpresa || undefined,
       }
-      if (!esEdicion) {
+      if (contrasena.trim()) {
         datos.contrasena = contrasena
       }
 
@@ -161,19 +160,19 @@ export default function UsuarioForm() {
           />
         </div>
 
-        {!esEdicion && (
-          <div className="form-campo">
-            <label htmlFor="contrasena">Contrasena *</label>
-            <input
-              id="contrasena"
-              type="password"
-              value={contrasena}
-              onChange={(e) => setContrasena(e.target.value)}
-              required
-              placeholder="Contrasena"
-            />
-          </div>
-        )}
+        <div className="form-campo">
+          <label htmlFor="contrasena">
+            Contrasena {esEdicion ? "(dejar vacio para mantener)" : "*"}
+          </label>
+          <input
+            id="contrasena"
+            type="password"
+            value={contrasena}
+            onChange={(e) => setContrasena(e.target.value)}
+            required={!esEdicion}
+            placeholder={esEdicion ? "Nueva contrasena (opcional)" : "Contrasena"}
+          />
+        </div>
 
         <div className="form-campo">
           <label htmlFor="rol">Rol</label>
