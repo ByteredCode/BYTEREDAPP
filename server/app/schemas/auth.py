@@ -25,13 +25,6 @@ class LogoutRequest(BaseModel):
     refresh_token: str
 
 
-class TokenResponse(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: str = "bearer"
-    usuario: UsuarioResponse
-
-
 class UsuarioResponse(BaseModel):
     codigo_usuario: int
     correo: str
@@ -42,3 +35,10 @@ class UsuarioResponse(BaseModel):
     # from_attributes permite construir el schema directamente desde un
     # modelo SQLAlchemy (ej. db_user) sin mapear campo por campo.
     model_config = {"from_attributes": True}
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    usuario: UsuarioResponse

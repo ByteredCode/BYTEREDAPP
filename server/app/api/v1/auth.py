@@ -12,7 +12,6 @@ from app.core.security import (
     crear_refresh_token,
     decodificar_token,
 )
-from app.models.usuario import Usuario
 from app.schemas.auth import LoginRequest, LogoutRequest, TokenResponse, UsuarioResponse
 from app.services.auth_service import cerrar_sesion, iniciar_sesion
 from sqlalchemy import select
