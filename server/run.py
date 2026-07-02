@@ -104,3 +104,14 @@ async def debug_smtp():
         "env_pass_len": len(os.environ.get("SMTP_PASSWORD", "")),
         "env_tickets": os.environ.get("TICKETS_EMAIL", "<NO>"),
     }
+
+
+@app.get("/test-smtp")
+async def test_smtp():
+    from app.services.email_service import _enviar_correo_sync
+    resultado = _enviar_correo_sync(
+        config.TICKETS_EMAIL,
+        "Test desde Render",
+        "Si ves esto, el SMTP funciona desde Render."
+    )
+    return {"enviado": resultado}
