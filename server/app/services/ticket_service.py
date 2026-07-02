@@ -1,23 +1,16 @@
-import logging
 from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import config
-from app.models.empresa import Empresa
 from app.models.ticket import Ticket
 from app.schemas.ticket import TicketCreate
-from app.services.email_service import enviar_correo
-
-logger = logging.getLogger(__name__)
 
 
 async def crear_ticket(db: AsyncSession, data: TicketCreate, codigo_usuario: int = None) -> Ticket:
-    # El ticket nace en estado "nuevo" por defecto en la BD
     ticket = Ticket(
-        codigo_usuario=codigo_usuario,  # None si es ticket anonimo
+        codigo_usuario=codigo_usuario,
         nombre_contacto=data.nombre_contacto,
         correo_contacto=data.correo_contacto,
         asunto=data.asunto,
@@ -28,36 +21,6 @@ async def crear_ticket(db: AsyncSession, data: TicketCreate, codigo_usuario: int
     db.add(ticket)
     await db.commit()
     await db.refresh(ticket)
-
-    # Solo se notifica por email si hay una direccion configurada; asi cada empresa
-    # decide si quiere alertas por correo o solo consultar el panel
-    resultado_empresa = await db.execute(
-        select(Empresa.nombre).where(Empresa.codigo_empresa == data.codigo_empresa)
-    )
-    nombre_empresa = resultado_empresa.scalar_one_or_none() or "Desconocida"
-
-    asunto_email = f"Nuevo ticket: {ticket.asunto or 'Sin asunto'} ({ticket.nivel_importancia})"
-    cuerpo = (
-        f"Nuevo ticket #{ticket.id_reporte}\n\n"
-        f"Nombre: {ticket.nombre_contacto or 'Anonimo'}\n"
-        f"Correo: {ticket.correo_contacto}\n"
-        f"Empresa: {nombre_empresa}\n"
-        f"Importancia: {ticket.nivel_importancia}\n\n"
-        f"Mensaje:\n{ticket.mensaje}"
-    )
-    if config.TICKETS_EMAIL:
-        logger.info(f"Enviando email ticket #{ticket.id_reporte} a {config.TICKETS_EMAIL} via {config.SMTP_HOST}:{config.SMTP_PORT}")
-        try:
-            enviado = await enviar_correo(config.TICKETS_EMAIL, asunto_email, cuerpo)
-            if enviado:
-                logger.info(f"Email ticket #{ticket.id_reporte} enviado correctamente")
-            else:
-                logger.warning(f"Email ticket #{ticket.id_reporte} fallo al enviar (revisar logs SMTP)")
-        except Exception as e:
-            logger.error(f"Excepcion enviando email ticket #{ticket.id_reporte}: {e}")
-    else:
-        logger.warning("TICKETS_EMAIL no configurado — email no enviado")
-
     return ticket
 
 
