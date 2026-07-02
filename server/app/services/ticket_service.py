@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
@@ -8,6 +9,8 @@ from app.core.config import config
 from app.models.ticket import Ticket
 from app.schemas.ticket import TicketCreate
 from app.services.email_service import enviar_correo
+
+logger = logging.getLogger(__name__)
 
 
 async def crear_ticket(db: AsyncSession, data: TicketCreate, codigo_usuario: int = None) -> Ticket:
@@ -29,16 +32,25 @@ async def crear_ticket(db: AsyncSession, data: TicketCreate, codigo_usuario: int
     # decide si quiere alertas por correo o solo consultar el panel
     asunto_email = f"Nuevo ticket: {ticket.asunto or 'Sin asunto'} ({ticket.nivel_importancia})"
     cuerpo = (
-        f"Ticket #{ticket.id_reporte}\n\n"
-        f"De: {ticket.nombre_contacto or 'Anonimo'} <{ticket.correo_contacto or 'sin correo'}>\n"
-        f"Importancia: {ticket.nivel_importancia}\n"
-        f"Mensaje:\n{ticket.mensaje}\n"
+        f"Nuevo ticket #{ticket.id_reporte}\n\n"
+        f"Nombre: {ticket.nombre_contacto or 'Anonimo'}\n"
+        f"Correo: {ticket.correo_contacto}\n"
+        f"Empresa: {ticket.codigo_empresa}\n"
+        f"Importancia: {ticket.nivel_importancia}\n\n"
+        f"Mensaje:\n{ticket.mensaje}"
     )
     if config.TICKETS_EMAIL:
+        logger.info(f"Enviando email ticket #{ticket.id_reporte} a {config.TICKETS_EMAIL} via {config.SMTP_HOST}:{config.SMTP_PORT}")
         try:
-            await enviar_correo(config.TICKETS_EMAIL, asunto_email, cuerpo)
-        except Exception:
-            pass
+            enviado = await enviar_correo(config.TICKETS_EMAIL, asunto_email, cuerpo)
+            if enviado:
+                logger.info(f"Email ticket #{ticket.id_reporte} enviado correctamente")
+            else:
+                logger.warning(f"Email ticket #{ticket.id_reporte} fallo al enviar (revisar logs SMTP)")
+        except Exception as e:
+            logger.error(f"Excepcion enviando email ticket #{ticket.id_reporte}: {e}")
+    else:
+        logger.warning("TICKETS_EMAIL no configurado — email no enviado")
 
     return ticket
 
