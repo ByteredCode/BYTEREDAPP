@@ -2,10 +2,13 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db, get_tenant_filter, get_usuario_actual
 from app.core.limiter import limiter
+from app.models.empresa import Empresa
 from app.models.usuario import Usuario
 from app.schemas.admin import Paginacion
 from app.schemas.ticket import TicketCreate, TicketResponse, TicketUpdateEstado
@@ -21,6 +24,13 @@ router = APIRouter(prefix="/tickets", tags=["Tickets"])
 seguridad_ticket = HTTPBearer(auto_error=False)
 
 
+class EmpresaSimple(BaseModel):
+    codigo_empresa: int
+    nombre: str
+
+    model_config = {"from_attributes": True}
+
+
 async def get_usuario_opcional(
     credenciales: Optional[HTTPAuthorizationCredentials] = Depends(seguridad_ticket),
     db: AsyncSession = Depends(get_db),
@@ -33,6 +43,12 @@ async def get_usuario_opcional(
     except Exception:
         # Token inválido no debe bloquear; el usuario anónimo aún puede crear tickets
         return None
+
+
+@router.get("/empresas", response_model=list[EmpresaSimple])
+async def listar_empresas_publico(db: AsyncSession = Depends(get_db)):
+    resultado = await db.execute(select(Empresa.codigo_empresa, Empresa.nombre))
+    return [{"codigo_empresa": r[0], "nombre": r[1]} for r in resultado.all()]
 
 
 @router.post("", response_model=TicketResponse, status_code=201)
