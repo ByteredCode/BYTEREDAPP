@@ -1,3 +1,4 @@
+import os
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Request
@@ -6,12 +7,14 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import config
 from app.core.dependencies import get_db, get_tenant_filter, get_usuario_actual
 from app.core.limiter import limiter
 from app.models.empresa import Empresa
 from app.models.usuario import Usuario
 from app.schemas.admin import Paginacion
 from app.schemas.ticket import TicketCreate, TicketResponse, TicketUpdateEstado
+from app.services.email_service import enviar_correo
 from app.services.ticket_service import (
     actualizar_estado_ticket,
     crear_ticket,
@@ -93,3 +96,25 @@ async def put_estado_ticket(
     # Se permite incluir una respuesta (texto) al cambiar el estado para que
     # el admin pueda comunicarse con el reportante sin usar otro canal
     return await actualizar_estado_ticket(db, id_reporte, data.estado, codigo_empresa, data.respuesta)
+
+
+@router.get("/debug-smtp")
+async def debug_smtp():
+    """Endpoint temporal para diagnosticar SMTP en Render. ELIMINAR despues."""
+    env_host = os.environ.get("SMTP_HOST", "<NO EXISTE>")
+    env_port = os.environ.get("SMTP_PORT", "<NO EXISTE>")
+    env_user = os.environ.get("SMTP_USER", "<NO EXISTE>")
+    env_pass_len = len(os.environ.get("SMTP_PASSWORD", ""))
+    env_tickets = os.environ.get("TICKETS_EMAIL", "<NO EXISTE>")
+    return {
+        "config_py_host": config.SMTP_HOST,
+        "config_py_port": config.SMTP_PORT,
+        "config_py_user": config.SMTP_USER,
+        "config_py_pass_len": len(config.SMTP_PASSWORD),
+        "config_py_tickets": config.TICKETS_EMAIL,
+        "env_host": env_host,
+        "env_port": env_port,
+        "env_user": env_user,
+        "env_pass_len": env_pass_len,
+        "env_tickets": env_tickets,
+    }
