@@ -35,7 +35,10 @@ async def crear_ticket(db: AsyncSession, data: TicketCreate, codigo_usuario: int
         f"Mensaje:\n{ticket.mensaje}\n"
     )
     if config.TICKETS_EMAIL:
-        await enviar_correo(config.TICKETS_EMAIL, asunto_email, cuerpo)
+        try:
+            await enviar_correo(config.TICKETS_EMAIL, asunto_email, cuerpo)
+        except Exception:
+            pass
 
     return ticket
 
