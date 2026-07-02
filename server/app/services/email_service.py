@@ -12,6 +12,8 @@ SMTP_TIMEOUT = 15
 
 
 def _enviar_correo_sync(destinatario: str, asunto: str, cuerpo: str) -> bool:
+    logger.info(f"SMTP config: host={config.SMTP_HOST!r} port={config.SMTP_PORT!r} user={config.SMTP_USER!r} pass_len={len(config.SMTP_PASSWORD)} tickets_email={config.TICKETS_EMAIL!r}")
+
     if not config.SMTP_HOST or not config.SMTP_PORT:
         logger.warning("SMTP no configurado, correo no enviado")
         return False
