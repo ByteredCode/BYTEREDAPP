@@ -87,31 +87,3 @@ app.include_router(redireccion_router)
 @app.get("/health")
 async def health():
     return {"status": "ok"}
-
-
-@app.get("/debug-smtp")
-async def debug_smtp():
-    import os
-    return {
-        "config_host": config.SMTP_HOST,
-        "config_port": config.SMTP_PORT,
-        "config_user": config.SMTP_USER,
-        "config_pass_len": len(config.SMTP_PASSWORD),
-        "config_tickets": config.TICKETS_EMAIL,
-        "env_host": os.environ.get("SMTP_HOST", "<NO>"),
-        "env_port": os.environ.get("SMTP_PORT", "<NO>"),
-        "env_user": os.environ.get("SMTP_USER", "<NO>"),
-        "env_pass_len": len(os.environ.get("SMTP_PASSWORD", "")),
-        "env_tickets": os.environ.get("TICKETS_EMAIL", "<NO>"),
-    }
-
-
-@app.get("/test-smtp")
-async def test_smtp():
-    from app.services.email_service import _enviar_correo_sync
-    resultado = _enviar_correo_sync(
-        config.TICKETS_EMAIL,
-        "Test desde Render",
-        "Si ves esto, el SMTP funciona desde Render."
-    )
-    return {"enviado": resultado}
