@@ -1,17 +1,19 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import config
 from app.core.dependencies import get_db, get_tenant_filter, get_usuario_actual
 from app.core.limiter import limiter
 from app.models.empresa import Empresa
 from app.models.usuario import Usuario
 from app.schemas.admin import Paginacion
 from app.schemas.ticket import TicketCreate, TicketResponse, TicketUpdateEstado
+from app.services.email_service import enviar_correo_sync
 from app.services.ticket_service import (
     actualizar_estado_ticket,
     crear_ticket,
@@ -56,12 +58,30 @@ async def listar_empresas_publico(db: AsyncSession = Depends(get_db)):
 async def post_ticket(
     request: Request,
     data: TicketCreate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     usuario: Optional[Usuario] = Depends(get_usuario_opcional),
 ):
-    # Endpoint público: cualquier persona (autenticada o no) puede reportar un problema
     codigo_usuario = usuario.codigo_usuario if usuario else None
-    return await crear_ticket(db, data, codigo_usuario)
+    ticket = await crear_ticket(db, data, codigo_usuario)
+
+    if config.TICKETS_EMAIL:
+        resultado_empresa = await db.execute(
+            select(Empresa.nombre).where(Empresa.codigo_empresa == data.codigo_empresa)
+        )
+        nombre_empresa = resultado_empresa.scalar_one_or_none() or "Desconocida"
+        asunto_email = f"Nuevo ticket: {ticket.asunto or 'Sin asunto'} ({ticket.nivel_importancia})"
+        cuerpo = (
+            f"Nuevo ticket #{ticket.id_reporte}\n\n"
+            f"Nombre: {ticket.nombre_contacto or 'Anonimo'}\n"
+            f"Correo: {ticket.correo_contacto}\n"
+            f"Empresa: {nombre_empresa}\n"
+            f"Importancia: {ticket.nivel_importancia}\n\n"
+            f"Mensaje:\n{ticket.mensaje}"
+        )
+        background_tasks.add_task(enviar_correo_sync, config.TICKETS_EMAIL, asunto_email, cuerpo)
+
+    return ticket
 
 
 @router.get("")
