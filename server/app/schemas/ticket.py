@@ -11,15 +11,10 @@ from pydantic import BaseModel
 
 
 class TicketCreate(BaseModel):
-    # Los campos de contacto son opcionales porque el formulario de
-    # tickets puede ser anónimo (sin sesión iniciada). Si el usuario
-    # está autenticado, estos datos se rellenan desde el JWT.
     nombre_contacto: Optional[str] = None
-    correo_contacto: Optional[str] = None
+    correo_contacto: str
     asunto: Optional[str] = None
     nivel_importancia: str = "Media"
-    # Solo 'mensaje' es obligatorio: un ticket siempre necesita un
-    # cuerpo, aunque quien lo envía no quiera identificarse.
     mensaje: str
     codigo_empresa: int
 

@@ -32,9 +32,7 @@ export default function NuevoTicket() {
       // mientras transformamos los datos para el backend
       const payload = { ...form }
       // Convertir campos vacios a null para el backend
-      // La API distingue entre campo vacío (se ignora) y null (se guarda)
       if (!payload.nombre_contacto) payload.nombre_contacto = null
-      if (!payload.correo_contacto) payload.correo_contacto = null
       if (!payload.asunto) payload.asunto = null
       // El backend espera un entero, no un string del input
       payload.codigo_empresa = Number(payload.codigo_empresa)
@@ -80,8 +78,8 @@ export default function NuevoTicket() {
           <input value={form.nombre_contacto} onChange={(e) => setForm({ ...form, nombre_contacto: e.target.value })} />
         </div>
         <div className="campo">
-          <label>Correo electrónico (opcional)</label>
-          <input type="email" value={form.correo_contacto} onChange={(e) => setForm({ ...form, correo_contacto: e.target.value })} />
+          <label>Correo electrónico</label>
+          <input type="email" value={form.correo_contacto} onChange={(e) => setForm({ ...form, correo_contacto: e.target.value })} required />
         </div>
         <div className="campo">
           <label>Asunto</label>
