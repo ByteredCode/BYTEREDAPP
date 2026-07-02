@@ -6,6 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import config
+from app.models.empresa import Empresa
 from app.models.ticket import Ticket
 from app.schemas.ticket import TicketCreate
 from app.services.email_service import enviar_correo
@@ -30,12 +31,17 @@ async def crear_ticket(db: AsyncSession, data: TicketCreate, codigo_usuario: int
 
     # Solo se notifica por email si hay una direccion configurada; asi cada empresa
     # decide si quiere alertas por correo o solo consultar el panel
+    resultado_empresa = await db.execute(
+        select(Empresa.nombre).where(Empresa.codigo_empresa == data.codigo_empresa)
+    )
+    nombre_empresa = resultado_empresa.scalar_one_or_none() or "Desconocida"
+
     asunto_email = f"Nuevo ticket: {ticket.asunto or 'Sin asunto'} ({ticket.nivel_importancia})"
     cuerpo = (
         f"Nuevo ticket #{ticket.id_reporte}\n\n"
         f"Nombre: {ticket.nombre_contacto or 'Anonimo'}\n"
         f"Correo: {ticket.correo_contacto}\n"
-        f"Empresa: {ticket.codigo_empresa}\n"
+        f"Empresa: {nombre_empresa}\n"
         f"Importancia: {ticket.nivel_importancia}\n\n"
         f"Mensaje:\n{ticket.mensaje}"
     )
