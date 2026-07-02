@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -58,7 +58,6 @@ async def listar_empresas_publico(db: AsyncSession = Depends(get_db)):
 async def post_ticket(
     request: Request,
     data: TicketCreate,
-    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     usuario: Optional[Usuario] = Depends(get_usuario_opcional),
 ):
@@ -79,7 +78,7 @@ async def post_ticket(
             f"Importancia: {ticket.nivel_importancia}\n\n"
             f"Mensaje:\n{ticket.mensaje}"
         )
-        background_tasks.add_task(enviar_correo_sync, config.TICKETS_EMAIL, asunto_email, cuerpo)
+        enviar_correo_sync(config.TICKETS_EMAIL, asunto_email, cuerpo)
 
     return ticket
 
