@@ -28,11 +28,10 @@ class Config(BaseSettings):
     REDIS_PORT: int = 6379
     REDIS_DB: int = 0
 
-    SMTP_HOST: str = ""
-    SMTP_PORT: Optional[int] = None
-    SMTP_USER: str = ""
-    SMTP_PASSWORD: str = ""
-    TICKETS_EMAIL: str = "admin@byteredapp.com"
+    # Email via Resend API (HTTPS, nunca bloqueado desde cloud)
+    RESEND_API_KEY: str = ""
+    RESEND_FROM: str = "BYTERED <sat@bytered.es>"
+    TICKETS_EMAIL: str = "sat@bytered.es"
 
     # @property evita almacenar valores derivados: se calculan cada vez que se accede
     @property
@@ -47,8 +46,8 @@ class Config(BaseSettings):
         )
 
     @property
-    def smtp_configurado(self) -> bool:
-        return bool(self.SMTP_HOST and self.SMTP_PORT)
+    def resend_configurado(self) -> bool:
+        return bool(self.RESEND_API_KEY)
 
     # Hook de Pydantic v2 que se ejecuta tras crear la instancia
     # Sirve para validaciones que dependen del valor final de los campos
@@ -58,10 +57,10 @@ class Config(BaseSettings):
                 "JWT_SECRET usa un valor por defecto. "
                 "Genera uno seguro con: python scripts/generate_secret.py"
             )
-        if not self.smtp_configurado:
+        if not self.resend_configurado:
             logger.warning(
-                "SMTP no configurado: los correos de tickets no se enviaran. "
-                "Configura SMTP_HOST y SMTP_PORT en .env"
+                "RESEND_API_KEY no configurada: los correos de tickets no se enviaran. "
+                "Configura RESEND_API_KEY en .env"
             )
         origenes = [o.strip() for o in self.CORS_ORIGINS.split(",")]
         if any("localhost" in o or "127.0.0.1" in o for o in origenes):
