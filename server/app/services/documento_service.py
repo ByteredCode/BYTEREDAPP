@@ -1,5 +1,6 @@
 import os
 import uuid
+import logging
 from datetime import date
 
 from fastapi import HTTPException, UploadFile, status
@@ -9,7 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.documento import Documento
 from app.models.documento_permiso import DocumentoPermiso
 
-DIRECTORIO_UPLOADS = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "uploads")
+logger = logging.getLogger(__name__)
+
+DIRECTORIO_UPLOADS = os.environ.get("UPLOADS_DIR", os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "uploads"))
 
 TIPOS_PERMITIDOS = {
     "application/pdf",
@@ -26,7 +29,10 @@ MAX_TAMANO = 10 * 1024 * 1024
 async def subir_documento(
     db: AsyncSession, archivo: UploadFile, tipo_documento: str, codigo_empresa: int, usuario_subio: int
 ) -> Documento:
+    logger.info(f"Subiendo documento: {archivo.filename} (tipo: {archivo.content_type}, empresa: {codigo_empresa})")
+
     if archivo.content_type and archivo.content_type not in TIPOS_PERMITIDOS:
+        logger.warning(f"Tipo no permitido: {archivo.content_type}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Tipo de archivo no permitido: {archivo.content_type}",
@@ -34,31 +40,51 @@ async def subir_documento(
     ext_permitidas = {".pdf", ".jpg", ".jpeg", ".png", ".gif", ".doc", ".docx", ".xls", ".xlsx", ".txt"}
     ext = os.path.splitext(archivo.filename)[1].lower() if archivo.filename else ""
     if ext and ext not in ext_permitidas:
+        logger.warning(f"Extension no permitida: {ext}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Extension no permitida: {ext}",
         )
 
-    # Cada empresa tiene su propia carpeta para evitar mezcla entre tenants
-    os.makedirs(os.path.join(DIRECTORIO_UPLOADS, str(codigo_empresa)), exist_ok=True)
+    try:
+        os.makedirs(os.path.join(DIRECTORIO_UPLOADS, str(codigo_empresa)), exist_ok=True)
+        logger.info(f"Directorio uploads: {DIRECTORIO_UPLOADS}/{codigo_empresa}")
+    except OSError as e:
+        logger.error(f"Error creando directorio uploads: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al crear directorio de almacenamiento: {e}",
+        )
 
-    # Usamos UUID en el nombre para evitar colisiones y, sobre todo, para que
-    # usuarios malintencionados no puedan adivinar rutas de otros archivos
     nombre_unico = f"{uuid.uuid4().hex}{ext}"
     ruta_relativa = os.path.join(str(codigo_empresa), nombre_unico)
     ruta_completa = os.path.join(DIRECTORIO_UPLOADS, ruta_relativa)
 
-    contenido = await archivo.read()
+    try:
+        contenido = await archivo.read()
+    except Exception as e:
+        logger.error(f"Error leyendo archivo: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Error al leer el archivo: {e}",
+        )
+
     if len(contenido) > MAX_TAMANO:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="El archivo supera el tamano maximo de 10MB",
         )
-    # Almacenamos en disco en vez de en la BD porque los archivos binarios grandes
-    # ralentizan las queries, incrementan el tamano de los backups y dificultan el
-    # acceso directo desde el sistema de archivos (ej. servir por nginx)
-    with open(ruta_completa, "wb") as f:
-        f.write(contenido)
+
+    try:
+        with open(ruta_completa, "wb") as f:
+            f.write(contenido)
+        logger.info(f"Archivo guardado: {ruta_completa} ({len(contenido)} bytes)")
+    except OSError as e:
+        logger.error(f"Error escribiendo archivo: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al guardar el archivo en disco: {e}",
+        )
 
     doc = Documento(
         nombre=archivo.filename or "sin_nombre",

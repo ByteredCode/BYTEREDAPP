@@ -8,7 +8,6 @@ const SERVICIOS_DISPONIBLES = [
   { clave: "scrum", etiqueta: "Scrum" },
   { clave: "tickets", etiqueta: "Tickets" },
   { clave: "documentacion", etiqueta: "Documentacion DPD/ISO" },
-  { clave: "fichaje", etiqueta: "Fichaje" },
   { clave: "redireccion", etiqueta: "Redireccion a web externa" },
 ]
 

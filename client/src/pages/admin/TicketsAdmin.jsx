@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react"
 import api from "../../api/axios"
 import { useToast } from "../../context/ToastContext"
+import { useAuth } from "../../context/AuthContext"
 import LoadingSpinner from "../../components/common/LoadingSpinner"
 import Pagination from "../../components/common/Pagination"
 
@@ -12,6 +13,8 @@ const IMPORTANCIA_CLASE = { Baja: "prioridad-baja", Media: "prioridad-media", Al
 
 export default function TicketsAdmin() {
   const { showToast } = useToast()
+  const { usuario } = useAuth()
+  const esAdminTotal = usuario?.rol === "admin_total"
   const [tickets, setTickets] = useState([])
   const [detalle, setDetalle] = useState(null)
   const [respuesta, setRespuesta] = useState("")
@@ -53,6 +56,18 @@ export default function TicketsAdmin() {
   function abrirDetalle(t) {
     setDetalle(t)
     setRespuesta("")
+  }
+
+  async function eliminarTicket(id) {
+    if (!confirm("¿Eliminar este ticket? Esta acción no se puede deshacer.")) return
+    try {
+      await api.delete(`/tickets/${id}`)
+      showToast("Ticket eliminado")
+      setDetalle(null)
+      fetchTickets()
+    } catch (err) {
+      showToast(err.response?.data?.detail || "Error al eliminar ticket")
+    }
   }
 
   if (cargando) return <LoadingSpinner mensaje="Cargando tickets..." />
@@ -136,6 +151,9 @@ export default function TicketsAdmin() {
               </div>
             </div>
             <div className="modal-acciones">
+              {esAdminTotal && (
+                <button className="btn-danger btn-sm" onClick={() => eliminarTicket(detalle.id_reporte)}>Eliminar ticket</button>
+              )}
               <button className="btn-secondary" onClick={() => setDetalle(null)}>Cerrar</button>
             </div>
           </div>
@@ -168,7 +186,12 @@ export default function TicketsAdmin() {
               <td>{t.estado}</td>
               <td>{t.fecha_reporte ? new Date(t.fecha_reporte).toLocaleDateString() : ""}</td>
               <td>
-                <button className="btn-secundario btn-sm" onClick={() => abrirDetalle(t)}>Ver</button>
+                <div className="acciones">
+                  <button className="btn-secundario btn-sm" onClick={() => abrirDetalle(t)}>Ver</button>
+                  {esAdminTotal && (
+                    <button className="btn-danger btn-sm" onClick={() => eliminarTicket(t.id_reporte)}>Eliminar</button>
+                  )}
+                </div>
               </td>
             </tr>
           ))}

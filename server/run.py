@@ -14,7 +14,6 @@ from app.api.v1.empresa import router as empresa_router
 from app.api.v1.scrum import router as scrum_router
 from app.api.v1.tickets import router as tickets_router
 from app.api.v1.documentos import router as documentos_router
-from app.api.v1.fichajes import router as fichajes_router
 from app.api.v1.redireccion import router as redireccion_router
 from app.core.blocklist import cerrar as cerrar_blocklist
 from app.core.config import config
@@ -78,7 +77,6 @@ api_v1.include_router(empresa_router)
 api_v1.include_router(scrum_router)
 api_v1.include_router(tickets_router)
 api_v1.include_router(documentos_router)
-api_v1.include_router(fichajes_router)
 app.include_router(api_v1)
 
 app.include_router(redireccion_router)

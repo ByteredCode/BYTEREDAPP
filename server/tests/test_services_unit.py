@@ -1,15 +1,12 @@
 # Tests unitarios para los servicios (sin BD real, usando mocks de AsyncSession)
-from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
 from sqlalchemy import Result
 
-from app.models.fichaje import Fichaje
 from app.schemas.ticket import TicketCreate
 from app.services.auth_service import iniciar_sesion, registrar_usuario
-from app.services.fichaje_service import registrar_entrada, registrar_salida
 from app.services.ticket_service import crear_ticket
 from tests.lib.mock_db import crear_mock_session
 
@@ -163,58 +160,3 @@ async def test_crear_ticket_anonimo():
 
     ticket_creado = mock_session.add.call_args[0][0]
     assert ticket_creado.codigo_usuario is None
-
-
-async def test_registrar_entrada():
-    # Registrar entrada debe crear un Fichaje con hora_entrada y hora_salida=None
-    mock_session = crear_mock_session()
-
-    fichaje = await registrar_entrada(
-        db=mock_session,
-        codigo_usuario=1,
-        codigo_empresa=1,
-    )
-
-    assert mock_session.add.called
-    assert mock_session.commit.called
-    assert fichaje.hora_entrada is not None
-    assert fichaje.hora_salida is None
-
-
-async def test_registrar_salida_sin_entrada():
-    # Si no hay fichaje abierto, registrar salida debe lanzar HTTPException 404
-    mock_session = crear_mock_session()
-    mock_result = MagicMock(spec=Result)
-    mock_result.scalar_one_or_none.return_value = None
-    mock_session.execute.return_value = mock_result
-
-    with pytest.raises(HTTPException) as exc:
-        await registrar_salida(
-            db=mock_session,
-            codigo_usuario=1,
-            codigo_empresa=1,
-        )
-    assert exc.value.status_code == 404
-
-
-async def test_registrar_salida_exito():
-    # Registrar salida con un fichaje abierto debe completar hora_salida
-    mock_session = crear_mock_session()
-    mock_result = MagicMock(spec=Result)
-    fichaje = Fichaje(
-        codigo_empresa=1,
-        codigo_usuario=1,
-        hora_entrada=datetime.now(),
-        hora_salida=None,
-    )
-    mock_result.scalar_one_or_none.return_value = fichaje
-    mock_session.execute.return_value = mock_result
-
-    resultado = await registrar_salida(
-        db=mock_session,
-        codigo_usuario=1,
-        codigo_empresa=1,
-    )
-
-    assert resultado.hora_salida is not None
-    assert mock_session.commit.called

@@ -64,6 +64,7 @@ class SprintCreate(BaseModel):
     objetivo: Optional[str] = None
     fecha_inicio: Optional[date] = None
     fecha_fin: Optional[date] = None
+    estado: Optional[str] = "Planificado"
 
 
 class SprintUpdate(BaseModel):

@@ -6,7 +6,12 @@ import { useAuth } from "../../context/AuthContext"
 // Arrays fijos para los select del formulario; se definen fuera del componente
 // para que no se recree la referencia en cada renderizado
 const PRIORIDADES = ["Baja", "Media", "Alta", "Critica"]
-const COLUMNAS = ["Todo", "Haciendose", "En revision", "Done"]
+const COLUMNAS = [
+  { id: "Todo", label: "Por hacer" },
+  { id: "Haciendose", label: "En proceso" },
+  { id: "En revision", label: "En revisión" },
+  { id: "Done", label: "Terminado" },
+]
 
 // Modal de formulario para crear/editar tareas; recibe la tarea a editar (o null),
 // la columna por defecto, la lista de sprints y callbacks para notificar cambios
@@ -101,7 +106,7 @@ export default function TareaForm({ editando, columna, sprints, sprintActivo, on
             <div className="campo">
               <label>Columna</label>
               <select value={form.columna} onChange={(e) => setForm({ ...form, columna: e.target.value })}>
-                {COLUMNAS.map((c) => <option key={c} value={c}>{c}</option>)}
+                {COLUMNAS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
               </select>
             </div>
           </div>

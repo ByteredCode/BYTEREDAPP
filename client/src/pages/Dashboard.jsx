@@ -32,12 +32,6 @@ export default function Dashboard() {
           <h3>Ticket de soporte</h3>
           <p>Enviar incidencia</p>
         </Link>
-        {usuario?.rol === "admin_total" && (
-          <Link to="/fichajes" className="modulo-card">
-            <h3>Fichajes</h3>
-            <p>Control horario</p>
-          </Link>
-        )}
         {/* Los enlaces a /admin/* son rutas protegidas; el backend también
             valida el rol, pero filtrar la UI evita que usuarios no-admin
             vean siquiera la opción (defense in depth). */}

@@ -23,7 +23,6 @@ describe('Servicios', () => {
     { servicio: 'scrum', activo: true },
     { servicio: 'tickets', activo: false },
     { servicio: 'documentacion', activo: true },
-    { servicio: 'fichaje', activo: true },
     { servicio: 'redireccion', activo: false },
   ]
 
@@ -43,7 +42,7 @@ describe('Servicios', () => {
     })
   })
 
-  it('renders all 5 services with correct labels', async () => {
+  it('renders all 4 services with correct labels', async () => {
     const api = (await import('../../../api/axios')).default
     api.get.mockImplementation((url) => {
       if (url.includes('/servicios')) return Promise.resolve({ data: mockServicios })
@@ -55,7 +54,6 @@ describe('Servicios', () => {
       expect(screen.getByText('Scrum')).toBeInTheDocument()
       expect(screen.getByText('Tickets')).toBeInTheDocument()
       expect(screen.getByText('Documentacion DPD/ISO')).toBeInTheDocument()
-      expect(screen.getByText('Fichaje')).toBeInTheDocument()
       expect(screen.getByText('Redireccion a web externa')).toBeInTheDocument()
     })
   })

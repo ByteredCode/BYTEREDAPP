@@ -29,7 +29,6 @@ from app.api.v1.empresa import router as test_empresa_router
 from app.api.v1.scrum import router as test_scrum_router
 from app.api.v1.tickets import router as test_tickets_router
 from app.api.v1.documentos import router as test_documentos_router
-from app.api.v1.fichajes import router as test_fichajes_router
 from app.api.v1.redireccion import router as test_redireccion_router
 
 # Variable de entorno para decidir si usar MySQL real o SQLite en memoria
@@ -86,7 +85,6 @@ async def client(test_session):
     test_router.include_router(test_scrum_router)
     test_router.include_router(test_tickets_router)
     test_router.include_router(test_documentos_router)
-    test_router.include_router(test_fichajes_router)
     test_router.include_router(test_redireccion_router)
     app.include_router(test_router)
 

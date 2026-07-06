@@ -6,7 +6,6 @@ from app.models.sprint import Sprint
 from app.models.documento import Documento
 from app.models.documento_permiso import DocumentoPermiso
 from app.models.ticket import Ticket
-from app.models.fichaje import Fichaje
 
 __all__ = [
     "Empresa",
@@ -17,5 +16,4 @@ __all__ = [
     "Documento",
     "DocumentoPermiso",
     "Ticket",
-    "Fichaje",
 ]

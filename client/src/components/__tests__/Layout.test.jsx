@@ -25,7 +25,6 @@ describe('Layout', () => {
     renderLayout({ nombre: 'Juan', rol: 'user' })
     expect(screen.getByText('BYTERED')).toBeInTheDocument()
     expect(screen.getByText('Scrum')).toBeInTheDocument()
-    expect(screen.getByText('Fichajes')).toBeInTheDocument()
     expect(screen.getByText('Tickets')).toBeInTheDocument()
     expect(screen.getByText('Documentos')).toBeInTheDocument()
     expect(screen.getByText('Juan')).toBeInTheDocument()
