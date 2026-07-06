@@ -11,4 +11,4 @@ pydantic[email]>=2.0.0
 pydantic-settings>=2.0.0
 slowapi>=0.1.9
 redis>=5.0.0
-resend[async]>=4.0.0
+resend[async]>=2.0.0
