@@ -26,7 +26,6 @@ class Empresa(Base):
     sprints = relationship("Sprint", back_populates="empresa")
     documentos = relationship("Documento", back_populates="empresa")
     tickets = relationship("Ticket", back_populates="empresa")
-    fichajes = relationship("Fichaje", back_populates="empresa")
     # cascade="all, delete-orphan": garantiza que al borrar una empresa se eliminen
     # automáticamente sus servicios/feature flags, evitando datos huérfanos en la BD.
     servicios = relationship("EmpresaServicio", back_populates="empresa", cascade="all, delete-orphan")

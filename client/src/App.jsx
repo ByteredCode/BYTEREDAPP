@@ -22,7 +22,6 @@ import Sprints from "./pages/Scrum/Sprints"
 import NuevoTicket from "./pages/Tickets/NuevoTicket"
 import TicketsAdmin from "./pages/admin/TicketsAdmin"
 import DocumentosAdmin from "./pages/Documentos/DocumentosAdmin"
-import Fichajes from "./pages/Fichajes"
 import MiEmpresa from "./pages/MiEmpresa"
 import NotFound from "./components/common/NotFound"
 
@@ -77,14 +76,6 @@ export default function App() {
               <Route path="tickets" element={<TicketsAdmin />} />
               <Route path="documentos" element={<DocumentosAdmin />} />
             </Route>
-            <Route
-              path="/fichajes"
-              element={
-                <ProtectedRoute>
-                  <Fichajes />
-                </ProtectedRoute>
-              }
-            />
             {/* ScrumLayout renderiza tabs de navegación interna (Tablero / Sprints) y un <Outlet /> */}
             <Route
               path="/scrum"

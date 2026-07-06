@@ -20,7 +20,6 @@ TAREAS = [
     {"titulo": "Escribir tests unitarios del backend", "descripcion": "Cubrir servicios de auth y scrum", "prioridad": "Media", "columna": "Todo"},
     {"titulo": "Documentar API con Swagger", "descripcion": "Anadir descripciones a endpoints", "prioridad": "Baja", "columna": "En revision"},
     {"titulo": "Corregir errores de CSS responsive", "descripcion": "Ajustar media queries", "prioridad": "Media", "columna": "Todo"},
-    {"titulo": "Implementar modulo de fichajes", "descripcion": "CRUD fichajes con admin view", "prioridad": "Alta", "columna": "Done"},
     {"titulo": "Configurar CSP y CORS", "descripcion": "Seguridad headers", "prioridad": "Media", "columna": "Done"},
     {"titulo": "Desplegar frontend en Hostinger", "descripcion": "Subir build via FTP", "prioridad": "Alta", "columna": "Done"},
 ]

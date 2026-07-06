@@ -1,4 +1,5 @@
 from typing import Optional
+import logging
 
 from fastapi import APIRouter, Depends, Query, UploadFile, File, Form
 from fastapi.responses import FileResponse
@@ -20,19 +21,23 @@ from app.services.documento_service import (
 )
 
 router = APIRouter(prefix="/documentos", tags=["Documentos"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("", response_model=DocumentoResponse, status_code=201)
 async def post_documento(
-    # UploadFile y Form se usan juntos para recibir multipart/form-data,
-    # necesario porque el archivo binario y los metadatos viajan en la misma petición
     archivo: UploadFile = File(...),
     tipo_documento: str = Form(default=None),
     db: AsyncSession = Depends(get_db),
     codigo_empresa: int = Depends(get_tenant_filter),
     usuario: Usuario = Depends(get_usuario_actual),
 ):
-    return await subir_documento(db, archivo, tipo_documento, codigo_empresa, usuario.codigo_usuario)
+    logger.info(f"Upload request: archivo={archivo.filename}, tipo={tipo_documento}, empresa={codigo_empresa}, usuario={usuario.codigo_usuario}")
+    try:
+        return await subir_documento(db, archivo, tipo_documento, codigo_empresa, usuario.codigo_usuario)
+    except Exception as e:
+        logger.error(f"Error en upload: {type(e).__name__}: {e}")
+        raise
 
 
 @router.get("")

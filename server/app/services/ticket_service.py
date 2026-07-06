@@ -57,3 +57,9 @@ async def actualizar_estado_ticket(
     await db.commit()
     await db.refresh(ticket)
     return ticket
+
+
+async def eliminar_ticket(db: AsyncSession, id_reporte: int, codigo_empresa: int) -> None:
+    ticket = await obtener_ticket(db, id_reporte, codigo_empresa)
+    await db.delete(ticket)
+    await db.commit()

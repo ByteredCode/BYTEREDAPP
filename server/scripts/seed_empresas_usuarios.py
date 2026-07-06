@@ -59,7 +59,7 @@ async def seed():
             empresa = Empresa(nombre=e_data["nombre"], web=e_data["web"])
             session.add(empresa)
             await session.flush()
-            for servicio in ["scrum", "tickets", "documentacion", "fichaje", "redireccion"]:
+            for servicio in ["scrum", "tickets", "documentacion", "redireccion"]:
                 session.add(EmpresaServicio(codigo_empresa=empresa.codigo_empresa, servicio=servicio, activo=True))
             empresas_ids.append(empresa.codigo_empresa)
             logger.info("  Empresa creada: %s (id %s)", empresa.nombre, empresa.codigo_empresa)

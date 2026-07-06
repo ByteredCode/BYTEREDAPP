@@ -39,10 +39,6 @@ export default function AdminDashboard() {
           <span className="stats-label">Usuarios</span>
         </div>
         <div className="stats-card">
-          <span className="stats-num">{stats.fichajes_abiertos}</span>
-          <span className="stats-label">Fichajes abiertos</span>
-        </div>
-        <div className="stats-card">
           <span className="stats-num">{stats.empresas_sin_web}</span>
           <span className="stats-label">Empresas sin web</span>
         </div>

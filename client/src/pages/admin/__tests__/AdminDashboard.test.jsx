@@ -28,7 +28,7 @@ describe('AdminDashboard', () => {
     const api = (await import('../../../api/axios')).default
     api.get.mockResolvedValueOnce({
       data: {
-        total_empresas: 5, total_usuarios: 20, fichajes_abiertos: 3,
+        total_empresas: 5, total_usuarios: 20,
         empresas_sin_web: 1, tickets_ultimo_mes: 10,
         usuarios_por_rol: [{ clave: 'admin', total: 2 }],
         tickets_por_estado: [{ clave: 'Pendiente', total: 4 }],
@@ -49,7 +49,7 @@ describe('AdminDashboard', () => {
     const api = (await import('../../../api/axios')).default
     api.get.mockResolvedValueOnce({
       data: {
-        total_empresas: 0, total_usuarios: 0, fichajes_abiertos: 0,
+        total_empresas: 0, total_usuarios: 0,
         empresas_sin_web: 0, tickets_ultimo_mes: 0,
         usuarios_por_rol: [{ clave: 'admin', total: 2 }],
         tickets_por_estado: [{ clave: 'Pendiente', total: 4 }],
@@ -68,7 +68,7 @@ describe('AdminDashboard', () => {
     const api = (await import('../../../api/axios')).default
     api.get.mockResolvedValueOnce({
       data: {
-        total_empresas: 0, total_usuarios: 0, fichajes_abiertos: 0,
+        total_empresas: 0, total_usuarios: 0,
         empresas_sin_web: 0, tickets_ultimo_mes: 0,
         usuarios_por_rol: [], tickets_por_estado: [], tareas_por_columna: [],
       }

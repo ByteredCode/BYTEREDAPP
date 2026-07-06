@@ -98,7 +98,6 @@ class AdminStatsResponse(BaseModel):
     # para cada tipo de conteo (DRY).
     usuarios_por_rol: list[ConteoPorClave]
     tickets_por_estado: list[ConteoPorClave]
-    fichajes_abiertos: int
     empresas_sin_web: int
     tareas_por_columna: list[ConteoPorClave]
     tickets_ultimo_mes: int

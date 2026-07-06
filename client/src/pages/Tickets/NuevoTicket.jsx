@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react"
 import api from "../../api/axios"
+import { useAuth } from "../../context/AuthContext"
 
 export default function NuevoTicket() {
+  const { usuario } = useAuth()
   const [form, setForm] = useState({
     nombre_contacto: "",
     correo_contacto: "",
@@ -15,11 +17,15 @@ export default function NuevoTicket() {
   const [error, setError] = useState("")
   const [cargando, setCargando] = useState(false)
 
+  const esAnonimo = !usuario
+
   useEffect(() => {
-    api.get("/tickets/empresas")
-      .then((res) => setEmpresas(res.data))
-      .catch(() => {})
-  }, [])
+    if (esAnonimo) {
+      api.get("/tickets/empresas")
+        .then((res) => setEmpresas(res.data))
+        .catch(() => {})
+    }
+  }, [esAnonimo])
 
   async function enviar(e) {
     e.preventDefault()
@@ -29,7 +35,11 @@ export default function NuevoTicket() {
       const payload = { ...form }
       if (!payload.nombre_contacto) payload.nombre_contacto = null
       if (!payload.asunto) payload.asunto = null
-      payload.codigo_empresa = Number(payload.codigo_empresa)
+      if (usuario) {
+        payload.codigo_empresa = usuario.codigo_empresa
+      } else {
+        payload.codigo_empresa = Number(payload.codigo_empresa)
+      }
       await api.post("/tickets", payload)
       setEnviado(true)
     } catch (err) {
@@ -68,16 +78,23 @@ export default function NuevoTicket() {
           <label>Asunto</label>
           <input value={form.asunto} onChange={(e) => setForm({ ...form, asunto: e.target.value })} />
         </div>
-        <div className="campo-row">
+        <div className="campo">
+          <label>Importancia</label>
+          <select value={form.nivel_importancia} onChange={(e) => setForm({ ...form, nivel_importancia: e.target.value })}>
+            <option value="Baja">Baja</option>
+            <option value="Media">Media</option>
+            <option value="Alta">Alta</option>
+            <option value="Critica">Crítica</option>
+          </select>
+        </div>
+        {!esAnonimo && (
           <div className="campo">
-            <label>Importancia</label>
-            <select value={form.nivel_importancia} onChange={(e) => setForm({ ...form, nivel_importancia: e.target.value })}>
-              <option value="Baja">Baja</option>
-              <option value="Media">Media</option>
-              <option value="Alta">Alta</option>
-              <option value="Critica">Crítica</option>
-            </select>
+            <label>Empresa</label>
+            <input type="text" value={usuario?.codigo_empresa || ""} disabled />
+            <small>Tu empresa se asigna automáticamente</small>
           </div>
+        )}
+        {esAnonimo && (
           <div className="campo">
             <label>Empresa</label>
             <select value={form.codigo_empresa} onChange={(e) => setForm({ ...form, codigo_empresa: e.target.value })} required>
@@ -87,7 +104,7 @@ export default function NuevoTicket() {
               ))}
             </select>
           </div>
-        </div>
+        )}
         <div className="campo">
           <label>Mensaje</label>
           <textarea rows="5" value={form.mensaje} onChange={(e) => setForm({ ...form, mensaje: e.target.value })} required />

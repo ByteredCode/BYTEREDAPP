@@ -17,6 +17,7 @@ from app.services.email_service import enviar_correo_sync
 from app.services.ticket_service import (
     actualizar_estado_ticket,
     crear_ticket,
+    eliminar_ticket,
     listar_tickets,
     obtener_ticket,
 )
@@ -112,3 +113,16 @@ async def put_estado_ticket(
     # Se permite incluir una respuesta (texto) al cambiar el estado para que
     # el admin pueda comunicarse con el reportante sin usar otro canal
     return await actualizar_estado_ticket(db, id_reporte, data.estado, codigo_empresa, data.respuesta)
+
+
+@router.delete("/{id_reporte}", status_code=204)
+async def delete_ticket(
+    id_reporte: int,
+    db: AsyncSession = Depends(get_db),
+    codigo_empresa: int = Depends(get_tenant_filter),
+    usuario: Usuario = Depends(get_usuario_actual),
+):
+    if usuario.rol != "admin_total":
+        from fastapi import HTTPException, status
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Solo admin_total puede eliminar tickets")
+    await eliminar_ticket(db, id_reporte, codigo_empresa)

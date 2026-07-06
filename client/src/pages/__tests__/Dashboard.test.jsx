@@ -32,7 +32,6 @@ describe('Dashboard', () => {
     renderDashboard({ nombre: 'Juan', rol: 'user' })
     expect(screen.getByText('Scrum')).toBeInTheDocument()
     expect(screen.getByText('Ticket de soporte')).toBeInTheDocument()
-    expect(screen.getByText('Fichajes')).toBeInTheDocument()
     expect(screen.getByText('Tickets')).toBeInTheDocument()
     expect(screen.getByText('Documentos')).toBeInTheDocument()
     expect(screen.queryByText('Administración')).not.toBeInTheDocument()

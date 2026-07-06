@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from app.core.config import config as app_config
 from app.core.database import Base
 # Importar modelos para que Base.metadata los conozca al generar migraciones
-from app.models import Empresa, EmpresaServicio, Usuario, Tarea, Documento, DocumentoPermiso, Ticket, Fichaje
+from app.models import Empresa, EmpresaServicio, Usuario, Tarea, Documento, DocumentoPermiso, Ticket
 
 config = context.config
 

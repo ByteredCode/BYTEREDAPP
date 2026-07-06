@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import hash_contrasena
 from app.models.empresa import Empresa
 from app.models.empresa_servicio import EmpresaServicio
-from app.models.fichaje import Fichaje
 from app.models.tarea import Tarea
 from app.models.ticket import Ticket
 from app.models.usuario import Usuario
@@ -23,7 +22,7 @@ from app.schemas.admin import (
 )
 
 # Al crear empresa se activan todos los modulos por defecto
-SERVICIOS_POR_DEFECTO = ["scrum", "tickets", "documentacion", "fichaje", "redireccion"]
+SERVICIOS_POR_DEFECTO = ["scrum", "tickets", "documentacion", "redireccion"]
 
 # Los servicios de admin reciben codigo_empresa como opcional (int | None):
 # - admin_total lo omite (None) y ve datos de todo el sistema sin filtro de tenant
@@ -237,11 +236,6 @@ async def obtener_stats(db: AsyncSession, codigo_empresa: int | None = None) -> 
     filas_ticket = await db.execute(tq)
     tickets_por_estado = [ConteoPorClave(clave=r.estado, total=r.total) for r in filas_ticket]
 
-    fq = select(func.count(Fichaje.id_fichaje)).where(Fichaje.hora_salida.is_(None))
-    if codigo_empresa:
-        fq = fq.where(Fichaje.codigo_empresa == codigo_empresa)
-    fichajes_abiertos = (await db.execute(fq)).scalar()
-
     eq = select(func.count(Empresa.codigo_empresa)).where(Empresa.web.is_(None))
     empresas_sin_web = (await db.execute(eq)).scalar()
 
@@ -262,7 +256,6 @@ async def obtener_stats(db: AsyncSession, codigo_empresa: int | None = None) -> 
         total_usuarios=total_usuarios,
         usuarios_por_rol=usuarios_por_rol,
         tickets_por_estado=tickets_por_estado,
-        fichajes_abiertos=fichajes_abiertos,
         empresas_sin_web=empresas_sin_web,
         tareas_por_columna=tareas_por_columna,
         tickets_ultimo_mes=tickets_ultimo_mes,

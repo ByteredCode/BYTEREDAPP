@@ -6,7 +6,6 @@ const SERVICIOS_ETIQUETAS = {
   scrum: "Scrum",
   tickets: "Tickets de soporte",
   documentacion: "Documentación DPD/ISO",
-  fichaje: "Control horario",
   redireccion: "Redirección a web externa",
   gestion_usuarios: "Gestión de usuarios",
 }
