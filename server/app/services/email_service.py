@@ -10,13 +10,13 @@ if config.RESEND_API_KEY:
     resend.api_key = config.RESEND_API_KEY
 
 
-async def enviar_correo_async(destinatario: str, asunto: str, cuerpo: str) -> bool:
+def enviar_correo_sync(destinatario: str, asunto: str, cuerpo: str) -> bool:
     if not config.RESEND_API_KEY:
         logger.warning("RESEND_API_KEY no configurada, correo no enviado")
         return False
 
     try:
-        await resend.Emails.send_async({
+        resend.Emails.send({
             "from": config.RESEND_FROM,
             "to": [destinatario],
             "subject": asunto,

@@ -13,7 +13,7 @@ from app.models.empresa import Empresa
 from app.models.usuario import Usuario
 from app.schemas.admin import Paginacion
 from app.schemas.ticket import TicketCreate, TicketResponse, TicketUpdateEstado
-from app.services.email_service import enviar_correo_async
+from app.services.email_service import enviar_correo_sync
 from app.services.ticket_service import (
     actualizar_estado_ticket,
     crear_ticket,
@@ -78,7 +78,7 @@ async def post_ticket(
             f"Importancia: {ticket.nivel_importancia}\n\n"
             f"Mensaje:\n{ticket.mensaje}"
         )
-        await enviar_correo_async(config.TICKETS_EMAIL, asunto_email, cuerpo)
+        enviar_correo_sync(config.TICKETS_EMAIL, asunto_email, cuerpo)
 
     return ticket
 
