@@ -127,9 +127,16 @@ async def obtener_documento(db: AsyncSession, id_documento: int, codigo_empresa:
 
 async def eliminar_documento(db: AsyncSession, id_documento: int, codigo_empresa: int) -> None:
     doc = await obtener_documento(db, id_documento, codigo_empresa)
-    ruta = os.path.join(DIRECTORIO_UPLOADS, doc.ruta_archivo) if doc.ruta_archivo else None
-    if ruta and os.path.exists(ruta):
-        os.remove(ruta)
+    if doc.ruta_archivo:
+        ruta = os.path.join(DIRECTORIO_UPLOADS, doc.ruta_archivo)
+        try:
+            if os.path.exists(ruta):
+                os.remove(ruta)
+                logger.info(f"Archivo eliminado: {ruta}")
+            else:
+                logger.warning(f"Archivo no encontrado en disco: {ruta}")
+        except OSError as e:
+            logger.error(f"Error eliminando archivo {ruta}: {e}")
     await db.delete(doc)
     await db.commit()
 

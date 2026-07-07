@@ -113,19 +113,16 @@ export default function DocumentosAdmin() {
     }
   }
 
-  async function descargar(id) {
+  async function descargar(id, nombre) {
     try {
-      // Pedimos el archivo como blob para poder crear una URL local
-      // y disparar la descarga sin abrir una nueva pestaña
-      // El responseType "blob" es necesario para que axios no intente
-      // parsear como JSON el binario del archivo
       const res = await api.get(`/documentos/${id}/descargar`, { responseType: "blob" })
       const url = URL.createObjectURL(res.data)
       const a = document.createElement("a")
       a.href = url
-      a.download = ""
+      a.download = nombre || ""
+      document.body.appendChild(a)
       a.click()
-      // Liberamos la URL temporal para evitar fugas de memoria
+      document.body.removeChild(a)
       URL.revokeObjectURL(url)
     } catch (err) {
       showToast("Error al descargar")
@@ -213,7 +210,7 @@ export default function DocumentosAdmin() {
                     <td>{d.fecha}</td>
                     <td>
                       <div className="acciones">
-                        <button className="btn-secundario btn-sm" onClick={() => descargar(d.id_documento)}>Descargar</button>
+                        <button className="btn-secundario btn-sm" onClick={() => descargar(d.id_documento, d.nombre)}>Descargar</button>
                         <button className="btn-secundario btn-sm" onClick={() => setPermisoDoc(d)}>Permisos</button>
                         <button className="btn-danger btn-sm" onClick={() => eliminar(d.id_documento)}>Eliminar</button>
                       </div>
