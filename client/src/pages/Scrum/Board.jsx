@@ -39,16 +39,18 @@ function SortableCard({ tarea, onClick, onDelete, usuarioMap }) {
   const prioridadClase = `prioridad-${tarea.prioridad?.toLowerCase() || "media"}`
 
   return (
-    <div ref={setNodeRef} style={style} className="kanban-card">
-      <button className="kanban-card-delete" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onDelete(tarea) }} title="Eliminar tarea">×</button>
-      <div {...attributes} {...listeners} className="kanban-card-content" onClick={() => onClick(tarea)}>
-        <div className="kanban-card-titulo">{tarea.titulo}</div>
-        <div className="kanban-card-meta">
-          <span className={`prioridad-badge ${prioridadClase}`}>{tarea.prioridad || "Media"}</span>
-          {tarea.fecha_limite && <span className="fecha-limite">{tarea.fecha_limite}</span>}
+    <div className="kanban-card-wrapper">
+      <div ref={setNodeRef} style={style} className="kanban-card" {...attributes} {...listeners}>
+        <div className="kanban-card-content" onClick={() => onClick(tarea)}>
+          <div className="kanban-card-titulo">{tarea.titulo}</div>
+          <div className="kanban-card-meta">
+            <span className={`prioridad-badge ${prioridadClase}`}>{tarea.prioridad || "Media"}</span>
+            {tarea.fecha_limite && <span className="fecha-limite">{tarea.fecha_limite}</span>}
+          </div>
+          {tarea.asignacion && <div className="kanban-card-asignacion">{usuarioMap?.[tarea.asignacion] || `#${tarea.asignacion}`}</div>}
         </div>
-        {tarea.asignacion && <div className="kanban-card-asignacion">{usuarioMap?.[tarea.asignacion] || `#${tarea.asignacion}`}</div>}
       </div>
+      <button className="kanban-card-delete" onClick={() => onDelete(tarea)} title="Eliminar tarea">×</button>
     </div>
   )
 }
