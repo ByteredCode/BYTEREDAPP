@@ -23,22 +23,16 @@ export default function TareaForm({ editando, columna, sprints, sprintActivo, on
   useEffect(() => {
     let cancel = false
     async function cargarUsuarios() {
-      try {
-        const res = await api.get("/empresa/mi-empresa/usuarios")
-        if (!cancel) setUsuarios(res.data)
-      } catch {
-        try {
-          const res = await api.get("/admin/usuarios", { params: { limit: 200 } })
-          if (!cancel) setUsuarios(res.data.items || res.data)
-        } catch {
-          if (usuario?.codigo_empresa) {
-            try {
-              const res = await api.get(`/admin/empresas/${usuario.codigo_empresa}/usuarios`, { params: { limit: 200 } })
-              if (!cancel) setUsuarios(res.data.items || res.data)
-            } catch { /* silent */ }
-          }
-        }
-      }
+      const intentos = [
+        api.get("/empresa/mi-empresa/usuarios").then(r => r.data),
+        api.get("/admin/usuarios", { params: { limit: 200 } }).then(r => r.data.items || r.data),
+        usuario?.codigo_empresa
+          ? api.get(`/admin/empresas/${usuario.codigo_empresa}/usuarios`, { params: { limit: 200 } }).then(r => r.data.items || r.data)
+          : Promise.reject(),
+      ]
+      const resultados = await Promise.allSettled(intentos)
+      const exitoso = resultados.find(r => r.status === "fulfilled")
+      if (exitoso && !cancel) setUsuarios(exitoso.value)
     }
     cargarUsuarios()
     return () => { cancel = true }

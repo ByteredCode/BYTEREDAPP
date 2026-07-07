@@ -38,16 +38,26 @@ function SortableCard({ tarea, onClick, onDelete, usuarioMap }) {
     setNodeRef(node)
   }, [setNodeRef])
 
+  const updateRect = useCallback(() => {
+    if (cardRef.current) setRect(cardRef.current.getBoundingClientRect())
+  }, [])
+
   useEffect(() => {
     if (!cardRef.current) return
-    const update = () => {
-      if (cardRef.current) setRect(cardRef.current.getBoundingClientRect())
-    }
-    update()
-    const observer = new ResizeObserver(update)
+    updateRect()
+    const observer = new ResizeObserver(updateRect)
     observer.observe(cardRef.current)
     return () => observer.disconnect()
-  }, [])
+  }, [updateRect])
+
+  useEffect(() => {
+    if (!isDragging) return
+    const onMove = () => {
+      if (cardRef.current) setRect(cardRef.current.getBoundingClientRect())
+    }
+    document.addEventListener("pointermove", onMove)
+    return () => document.removeEventListener("pointermove", onMove)
+  }, [isDragging])
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -57,7 +67,7 @@ function SortableCard({ tarea, onClick, onDelete, usuarioMap }) {
 
   const prioridadClase = `prioridad-${tarea.prioridad?.toLowerCase() || "media"}`
 
-  const deleteBtn = rect && createPortal(
+  const deleteBtn = rect && !isDragging && createPortal(
     <button
       className="kanban-card-delete"
       style={{ position: "fixed", top: rect.top + 4, left: rect.right - 26, zIndex: 9999 }}
@@ -176,22 +186,16 @@ export default function Board() {
   }, [])
 
   const fetchUsuarios = useCallback(async () => {
-    try {
-      const res = await api.get("/empresa/mi-empresa/usuarios")
-      setUsuarios(res.data)
-    } catch {
-      try {
-        const res = await api.get("/admin/usuarios", { params: { limit: 200 } })
-        setUsuarios(res.data.items || res.data)
-      } catch {
-        if (usuario?.codigo_empresa) {
-          try {
-            const res = await api.get(`/admin/empresas/${usuario.codigo_empresa}/usuarios`, { params: { limit: 200 } })
-            setUsuarios(res.data.items || res.data)
-          } catch { /* silent */ }
-        }
-      }
-    }
+    const intentos = [
+      api.get("/empresa/mi-empresa/usuarios").then(r => r.data),
+      api.get("/admin/usuarios", { params: { limit: 200 } }).then(r => r.data.items || r.data),
+      usuario?.codigo_empresa
+        ? api.get(`/admin/empresas/${usuario.codigo_empresa}/usuarios`, { params: { limit: 200 } }).then(r => r.data.items || r.data)
+        : Promise.reject(),
+    ]
+    const resultados = await Promise.allSettled(intentos)
+    const exitoso = resultados.find(r => r.status === "fulfilled")
+    if (exitoso) setUsuarios(exitoso.value)
   }, [usuario])
 
   useEffect(() => { fetchTablero() }, [fetchTablero])
