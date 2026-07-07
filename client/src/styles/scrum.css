@@ -56,6 +56,7 @@
   padding: 0.75rem; box-shadow: var(--shadow-sm);
   cursor: grab; transition: box-shadow 0.2s, transform 0.15s;
   user-select: none; border: 1px solid var(--border-light);
+  position: relative;
 }
 .kanban-card:hover { box-shadow: var(--shadow-md); }
 .kanban-card:active { cursor: grabbing; }
@@ -71,7 +72,6 @@
 .fecha-limite { font-size: 0.7rem; color: var(--text-muted); }
 .kanban-card-asignacion { font-size: 0.7rem; color: var(--primary); margin-top: 0.25rem; }
 
-.kanban-card { position: relative; }
 .kanban-card-delete {
   position: absolute; top: 0.3rem; right: 0.3rem;
   width: 20px; height: 20px; border: none; border-radius: 50%;
