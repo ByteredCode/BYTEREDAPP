@@ -41,13 +41,14 @@ class UsuarioCreate(BaseModel):
     codigo_empresa: int
     # El rol por defecto es "usuario" para que, si el admin no lo
     # especifica, el nuevo usuario no herede privilegios no deseados.
-    rol: str = "usuario"
+    # Validación explícita de enum para evitar inyección de valores inválidos
+    rol: str = Field(default="usuario", pattern=r"^(admin_total|admin_empresa|usuario)$")
 
 
 class UsuarioUpdate(BaseModel):
     nombre: Optional[str] = None
     contrasena: Optional[str] = None
-    rol: Optional[str] = None
+    rol: Optional[str] = Field(default=None, pattern=r"^(admin_total|admin_empresa|usuario)$")
 
 
 class UsuarioAdminResponse(BaseModel):

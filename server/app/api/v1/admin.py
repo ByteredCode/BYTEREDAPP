@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,6 +21,7 @@ from app.schemas.admin import (
 from app.services import admin_service
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
+logger = logging.getLogger("byteredapp.admin")
 
 
 # ────────────────────────────── EMPRESAS ──────────────────────────────
@@ -50,7 +53,9 @@ async def crear_empresa(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tienes permisos para crear empresas",
         )
-    return await admin_service.crear_empresa(db, body)
+    empresa = await admin_service.crear_empresa(db, body)
+    logger.info("Admin %s creo empresa %s (%s)", usuario.codigo_usuario, empresa.codigo_empresa, empresa.nombre)
+    return empresa
 
 
 @router.get("/empresas/{codigo_empresa}", response_model=EmpresaResponse)
@@ -97,6 +102,7 @@ async def eliminar_empresa(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tienes permisos para eliminar empresas",
         )
+    logger.warning("Admin %s elimino empresa %s", usuario.codigo_usuario, codigo_empresa)
     await admin_service.eliminar_empresa(db, codigo_empresa)
 
 
@@ -145,7 +151,9 @@ async def crear_usuario(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Solo el administrador principal puede crear usuarios",
         )
-    return await admin_service.crear_usuario_admin(db, body)
+    nuevo = await admin_service.crear_usuario_admin(db, body)
+    logger.info("Admin %s creo usuario %s (%s) en empresa %s con rol %s", usuario.codigo_usuario, nuevo.codigo_usuario, nuevo.correo, body.codigo_empresa, body.rol)
+    return nuevo
 
 
 @router.put("/usuarios/{codigo_usuario}", response_model=UsuarioAdminResponse)
@@ -160,7 +168,9 @@ async def actualizar_usuario(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Solo el administrador principal puede modificar usuarios",
         )
-    return await admin_service.actualizar_usuario(db, codigo_usuario, body)
+    actualizado = await admin_service.actualizar_usuario(db, codigo_usuario, body)
+    logger.info("Admin %s actualizo usuario %s — campos: %s", usuario.codigo_usuario, codigo_usuario, list(body.model_dump(exclude_unset=True).keys()))
+    return actualizado
 
 
 @router.delete("/usuarios/{codigo_usuario}", status_code=status.HTTP_204_NO_CONTENT)
@@ -174,6 +184,7 @@ async def eliminar_usuario(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Solo el administrador principal puede eliminar usuarios",
         )
+    logger.warning("Admin %s elimino usuario %s", usuario.codigo_usuario, codigo_usuario)
     await admin_service.eliminar_usuario(db, codigo_usuario)
 
 
@@ -202,7 +213,9 @@ async def toggle_servicio(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tienes permisos para modificar servicios",
         )
-    return await admin_service.toggle_servicio(db, codigo_empresa, body)
+    resultado = await admin_service.toggle_servicio(db, codigo_empresa, body)
+    logger.info("Admin %s togglo servicio %s de empresa %s a activo=%s", usuario.codigo_usuario, body.servicio, codigo_empresa, body.activo)
+    return resultado
 
 
 # ────────────────────────────── ESTADISTICAS ──────────────────────────────
