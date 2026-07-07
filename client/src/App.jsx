@@ -1,7 +1,7 @@
 // Importaciones agrupadas por tipo: contexto > layout > guards > páginas
 // Esto facilita localizar dependencias de un vistazo
-import { BrowserRouter, Routes, Route } from "react-router-dom"
-import { AuthProvider } from "./context/AuthContext"
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
+import { AuthProvider, useAuth } from "./context/AuthContext"
 import { ToastProvider } from "./context/ToastContext"
 import Layout from "./components/Layout"
 import ProtectedRoute from "./components/ProtectedRoute"
@@ -25,6 +25,12 @@ import DocumentosAdmin from "./pages/Documentos/DocumentosAdmin"
 import MiEmpresa from "./pages/MiEmpresa"
 import NotFound from "./components/common/NotFound"
 
+function RootRedirect() {
+  const { usuario, cargando } = useAuth()
+  if (cargando) return null
+  return <Navigate to={usuario ? "/dashboard" : "/login"} replace />
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -32,6 +38,7 @@ export default function App() {
         <ToastProvider>
         <Routes>
           {/* Rutas publicas (sin layout ni autenticacion) */}
+          <Route path="/" element={<RootRedirect />} />
           <Route path="/login" element={<Login />} />
 
           {/* Layout como ruta "padre" sin path: solo aporta el navbar y <Outlet /> para las hijas */}
