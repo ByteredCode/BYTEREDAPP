@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db, get_tenant_filter
+from app.core.limiter import limiter
 from app.schemas.admin import Paginacion
 from app.schemas.tarea import (
     SprintCreate,
@@ -53,7 +54,9 @@ async def get_tareas(
 
 
 @router.post("/tareas", response_model=TareaResponse, status_code=201)
+@limiter.limit("30/minute")
 async def post_tarea(
+    request: Request,
     data: TareaCreate,
     db: AsyncSession = Depends(get_db),
     codigo_empresa: int = Depends(get_tenant_filter),
@@ -95,7 +98,9 @@ async def put_mover_tarea(
 
 
 @router.delete("/tareas/{codigo_tarea}", status_code=204)
+@limiter.limit("20/minute")
 async def delete_tarea(
+    request: Request,
     codigo_tarea: int,
     db: AsyncSession = Depends(get_db),
     codigo_empresa: int = Depends(get_tenant_filter),
@@ -114,7 +119,9 @@ async def get_sprints(
 
 
 @router.post("/sprints", response_model=SprintResponse, status_code=201)
+@limiter.limit("10/minute")
 async def post_sprint(
+    request: Request,
     data: SprintCreate,
     db: AsyncSession = Depends(get_db),
     codigo_empresa: int = Depends(get_tenant_filter),
@@ -144,7 +151,9 @@ async def put_sprint(
 
 
 @router.delete("/sprints/{codigo_sprint}", status_code=204)
+@limiter.limit("10/minute")
 async def delete_sprint(
+    request: Request,
     codigo_sprint: int,
     db: AsyncSession = Depends(get_db),
     codigo_empresa: int = Depends(get_tenant_filter),

@@ -2,11 +2,12 @@ from typing import Optional
 import os
 import logging
 
-from fastapi import APIRouter, Depends, Query, UploadFile, File, Form
+from fastapi import APIRouter, Depends, Query, Request, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.dependencies import get_db, get_tenant_filter, get_usuario_actual
+from app.core.limiter import limiter
 from app.models.usuario import Usuario
 from app.schemas.admin import Paginacion
 from app.schemas.documento import DocumentoResponse, PermisoAgregar, PermisoResponse
@@ -26,7 +27,9 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("", response_model=DocumentoResponse, status_code=201)
+@limiter.limit("20/hour")
 async def post_documento(
+    request: Request,
     archivo: UploadFile = File(...),
     tipo_documento: str = Form(default=None),
     db: AsyncSession = Depends(get_db),
@@ -96,6 +99,11 @@ async def delete_documento(
     codigo_empresa: int = Depends(get_tenant_filter),
     usuario: Usuario = Depends(get_usuario_actual),
 ):
+    doc = await obtener_documento(db, id_documento, codigo_empresa)
+    es_admin = usuario.rol in ("admin_total", "admin_empresa")
+    if not es_admin and doc.usuario_subio != usuario.codigo_usuario:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="No tienes permiso para eliminar este documento")
     await eliminar_documento(db, id_documento, codigo_empresa)
 
 

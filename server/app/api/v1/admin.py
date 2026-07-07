@@ -1,10 +1,11 @@
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import get_usuario_actual
+from app.core.limiter import limiter
 from app.models.usuario import Usuario
 from app.schemas.admin import (
     AdminStatsResponse,
@@ -43,12 +44,15 @@ async def listar_empresas(
 
 
 @router.post("/empresas", response_model=EmpresaResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("10/minute")
 async def crear_empresa(
+    request: Request,
     body: EmpresaCreate,
     usuario: Usuario = Depends(get_usuario_actual),
     db: AsyncSession = Depends(get_db),
 ):
     if usuario.rol != "admin_total":
+        logger.warning("403: usuario %s intento crear empresa sin permisos", usuario.codigo_usuario)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tienes permisos para crear empresas",
@@ -92,12 +96,15 @@ async def actualizar_empresa(
 
 
 @router.delete("/empresas/{codigo_empresa}", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("10/minute")
 async def eliminar_empresa(
+    request: Request,
     codigo_empresa: int,
     usuario: Usuario = Depends(get_usuario_actual),
     db: AsyncSession = Depends(get_db),
 ):
     if usuario.rol != "admin_total":
+        logger.warning("403: usuario %s intento eliminar empresa %s sin permisos", usuario.codigo_usuario, codigo_empresa)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tienes permisos para eliminar empresas",
@@ -141,12 +148,15 @@ async def listar_usuarios(
 
 
 @router.post("/usuarios", response_model=UsuarioAdminResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("10/minute")
 async def crear_usuario(
+    request: Request,
     body: UsuarioCreate,
     usuario: Usuario = Depends(get_usuario_actual),
     db: AsyncSession = Depends(get_db),
 ):
     if usuario.rol != "admin_total":
+        logger.warning("403: usuario %s intento crear usuario sin permisos", usuario.codigo_usuario)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Solo el administrador principal puede crear usuarios",
@@ -174,12 +184,15 @@ async def actualizar_usuario(
 
 
 @router.delete("/usuarios/{codigo_usuario}", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("10/minute")
 async def eliminar_usuario(
+    request: Request,
     codigo_usuario: int,
     usuario: Usuario = Depends(get_usuario_actual),
     db: AsyncSession = Depends(get_db),
 ):
     if usuario.rol != "admin_total":
+        logger.warning("403: usuario %s intento eliminar usuario %s sin permisos", usuario.codigo_usuario, codigo_usuario)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Solo el administrador principal puede eliminar usuarios",
