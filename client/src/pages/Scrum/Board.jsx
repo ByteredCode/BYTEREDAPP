@@ -1,9 +1,4 @@
-// Usamos @dnd-kit en lugar de HTML5 Drag & Drop nativo porque:
-// - Permite un DragOverlay personalizado que sigue al cursor
-// - PointerSensor evita que clicks accidentales activen el drag
-// - SortableContext maneja el reordenamiento interno de cada columna
-import { useState, useEffect, useCallback, useMemo, useRef } from "react"
-import { createPortal } from "react-dom"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { DndContext, DragOverlay, PointerSensor, useDroppable, useSensor, useSensors } from "@dnd-kit/core"
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
@@ -13,9 +8,6 @@ import { useToast } from "../../context/ToastContext"
 import LoadingSpinner from "../../components/common/LoadingSpinner"
 import TareaForm from "./TareaForm"
 
-// Las 4 columnas clásicas de Kanban. Separamos id (clave técnica en la BD)
-// de titulo (texto visible en español) para poder cambiar los nombres
-// sin afectar la lógica del backend ni el mapeo de datos
 const COLUMNAS = [
   { id: "Todo", titulo: "Por hacer" },
   { id: "Haciendose", titulo: "En proceso" },
@@ -23,41 +15,10 @@ const COLUMNAS = [
   { id: "Done", titulo: "Terminado" },
 ]
 
-// Cada tarjeta es un componente independiente con su propio hook useSortable.
-// Lo separamos de Columna para que React solo re-renderice la tarjeta que se
-// está arrastrando, no todas las tarjetas del tablero
-function SortableCard({ tarea, onClick, onDelete, usuarioMap }) {
+function SortableCard({ tarea, onClick, usuarioMap }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: tarea.codigo_tarea,
   })
-  const cardRef = useRef(null)
-  const [rect, setRect] = useState(null)
-
-  const mergedRef = useCallback((node) => {
-    cardRef.current = node
-    setNodeRef(node)
-  }, [setNodeRef])
-
-  const updateRect = useCallback(() => {
-    if (cardRef.current) setRect(cardRef.current.getBoundingClientRect())
-  }, [])
-
-  useEffect(() => {
-    if (!cardRef.current) return
-    updateRect()
-    const observer = new ResizeObserver(updateRect)
-    observer.observe(cardRef.current)
-    return () => observer.disconnect()
-  }, [updateRect])
-
-  useEffect(() => {
-    if (!isDragging) return
-    const onMove = () => {
-      if (cardRef.current) setRect(cardRef.current.getBoundingClientRect())
-    }
-    document.addEventListener("pointermove", onMove)
-    return () => document.removeEventListener("pointermove", onMove)
-  }, [isDragging])
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -67,37 +28,20 @@ function SortableCard({ tarea, onClick, onDelete, usuarioMap }) {
 
   const prioridadClase = `prioridad-${tarea.prioridad?.toLowerCase() || "media"}`
 
-  const deleteBtn = rect && !isDragging && createPortal(
-    <button
-      className="kanban-card-delete"
-      style={{ position: "fixed", top: rect.top + 4, left: rect.right - 26, zIndex: 9999 }}
-      onClick={(e) => { e.stopPropagation(); onDelete(tarea) }}
-      title="Eliminar tarea"
-    >×</button>,
-    document.body
-  )
-
   return (
-    <>
-      <div ref={mergedRef} style={style} className="kanban-card" {...attributes} {...listeners}>
-        <div className="kanban-card-content" onClick={() => onClick(tarea)}>
-          <div className="kanban-card-titulo">{tarea.titulo}</div>
-          <div className="kanban-card-meta">
-            <span className={`prioridad-badge ${prioridadClase}`}>{tarea.prioridad || "Media"}</span>
-            {tarea.fecha_limite && <span className="fecha-limite">{tarea.fecha_limite}</span>}
-          </div>
-          {tarea.asignacion && <div className="kanban-card-asignacion">{usuarioMap?.[tarea.asignacion] || `#${tarea.asignacion}`}</div>}
+    <div ref={setNodeRef} style={style} className="kanban-card" {...attributes} {...listeners}>
+      <div className="kanban-card-content" onClick={() => onClick(tarea)}>
+        <div className="kanban-card-titulo">{tarea.titulo}</div>
+        <div className="kanban-card-meta">
+          <span className={`prioridad-badge ${prioridadClase}`}>{tarea.prioridad || "Media"}</span>
+          {tarea.fecha_limite && <span className="fecha-limite">{tarea.fecha_limite}</span>}
         </div>
+        {tarea.asignacion && <div className="kanban-card-asignacion">{usuarioMap?.[tarea.asignacion] || `#${tarea.asignacion}`}</div>}
       </div>
-      {deleteBtn}
-    </>
+    </div>
   )
 }
 
-// Vista previa que sigue al cursor durante el arrastre (DragOverlay)
-// @dnd-kit necesita un componente separado para el overlay porque
-// la tarjeta original se vuelve transparente (opacity 0.4) y el overlay
-// es el que realmente se ve moviendose con el cursor
 function CardPreview({ tarea }) {
   if (!tarea) return null
   return (
@@ -112,26 +56,27 @@ function CardPreview({ tarea }) {
   )
 }
 
-// Columna del Kanban con lista ordenable
-// SortableContext envuelve cada columna individualmente para que @dnd-kit
-// sepa que las tarjetas solo se reordenan dentro de su propia columna
-// (no se pueden mezclar entre columnas a nivel de lista, el cambio de columna
-// se maneja en handleDragEnd)
-function Columna({ id, titulo, tareas, onAgregar, onEditar, onDelete, usuarioMap }) {
+function Columna({ id, titulo, tareas, onAgregar, onEditar, onEliminarFinalizadas, usuarioMap }) {
   const { setNodeRef, isOver } = useDroppable({ id })
   const ids = tareas.map((t) => t.codigo_tarea)
+  const esDone = id === "Done"
 
   return (
     <div className="kanban-columna">
       <div className="kanban-columna-header">
         <h3>{titulo}</h3>
         <span className="kanban-count">{tareas.length}</span>
+        {esDone && tareas.length > 0 && (
+          <button className="btn-eliminar-finalizadas" onClick={onEliminarFinalizadas} title="Eliminar todas las tareas finalizadas">
+            Eliminar finalizadas
+          </button>
+        )}
         <button className="btn-add-tarea" onClick={onAgregar} title="Agregar tarea">+</button>
       </div>
       <SortableContext items={ids} strategy={verticalListSortingStrategy}>
         <div ref={setNodeRef} className={`kanban-columna-body${isOver ? " kanban-columna-over" : ""}`}>
           {tareas.map((tarea) => (
-            <SortableCard key={tarea.codigo_tarea} tarea={tarea} onClick={() => onEditar(tarea)} onDelete={onDelete} usuarioMap={usuarioMap} />
+            <SortableCard key={tarea.codigo_tarea} tarea={tarea} onClick={() => onEditar(tarea)} usuarioMap={usuarioMap} />
           ))}
         </div>
       </SortableContext>
@@ -140,37 +85,29 @@ function Columna({ id, titulo, tareas, onAgregar, onEditar, onDelete, usuarioMap
 }
 
 export default function Board() {
-  // columnas es un objeto indexado por el id de cada columna para acceso directo:
-  // columnas["Todo"], columnas["Done"], etc. La estructura refleja la respuesta del backend.
   const [columnas, setColumnas] = useState({ Todo: [], Haciendose: [], "En revision": [], Done: [] })
   const [sprints, setSprints] = useState([])
   const [sprintActivo, setSprintActivo] = useState("")
-  const [activeId, setActiveId] = useState(null)  // ID de la tarea siendo arrastrada (para el DragOverlay)
+  const [activeId, setActiveId] = useState(null)
   const [mostrarForm, setMostrarForm] = useState(false)
   const [editando, setEditando] = useState(null)
-  const [columnaForm, setColumnaForm] = useState("Todo")  // Columna preseleccionada al crear tarea
+  const [columnaForm, setColumnaForm] = useState("Todo")
   const [cargando, setCargando] = useState(true)
   const { usuario } = useAuth()
   const { success, error: toastError } = useToast()
   const [usuarios, setUsuarios] = useState([])
   const [filtroUsuario, setFiltroUsuario] = useState("")
-  const [tareaEliminar, setTareaEliminar] = useState(null)
+  const [mostrarConfirmEliminar, setMostrarConfirmEliminar] = useState(false)
 
-  // PointerSensor con distance:5 para que un click normal NO inicie el drag.
-  // El usuario debe mover el ratón al menos 5px para que se active el arrastre,
-  // evitando falsos positivos al seleccionar texto o hacer click rápido
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
-  // useCallback evita que la función se recre en cada render, rompiendo la
-  // dependencia de useEffect y provocando un bucle infinito de peticiones
   const fetchTablero = useCallback(async () => {
     try {
       const params = sprintActivo ? { codigo_sprint: Number(sprintActivo) } : {}
       const res = await api.get("/scrum/tablero", { params })
       setColumnas(res.data)
     } catch {
-      // Error silencioso intencionado: fetchTablero también se usa en el catch del
-      // optimistic update para hacer rollback; si el rollback falla, no queremos otra alerta
+      // silent
     } finally {
       setCargando(false)
     }
@@ -202,30 +139,15 @@ export default function Board() {
   useEffect(() => { fetchSprints() }, [fetchSprints])
   useEffect(() => { fetchUsuarios() }, [fetchUsuarios])
 
-  // Aplanamos el objeto columnas en un único array para poder buscar tareas
-  // por ID en una sola pasada en vez de iterar columna por columna.
-  // useMemo evita recalcularlo si columnas no ha cambiado entre renders
-  const todasLasTareas = useMemo(() => {
-    return Object.values(columnas).flat()
-  }, [columnas])
+  const todasLasTareas = useMemo(() => Object.values(columnas).flat(), [columnas])
+  const activeTarea = useMemo(() => todasLasTareas.find((t) => t.codigo_tarea === activeId), [todasLasTareas, activeId])
 
-  // Tarea actualmente arrastrada: se obtiene del listado aplanado y se pasa
-  // a DragOverlay para mostrar la vista previa que sigue al cursor
-  const activeTarea = useMemo(() => {
-    return todasLasTareas.find((t) => t.codigo_tarea === activeId)
-  }, [todasLasTareas, activeId])
-
-  // Mapa de codigo_usuario -> nombre para mostrar el nombre en las tarjetas
-  // en vez del ID numerico
   const usuarioMap = useMemo(() => {
     const map = {}
     usuarios.forEach((u) => { map[u.codigo_usuario] = u.nombre })
     return map
   }, [usuarios])
 
-  // Filtro por usuario: si hay un usuario seleccionado, filtramos las tareas
-  // de cada columna por su asignacion. El filtro es solo visual; el drag & drop
-  // y el resto de la lógica interna siguen usando el conjunto completo de datos.
   const columnasFiltradas = useMemo(() => {
     if (!filtroUsuario) return columnas
     const usuarioNum = Number(filtroUsuario)
@@ -236,9 +158,8 @@ export default function Board() {
     return filtradas
   }, [columnas, filtroUsuario])
 
-  // Guardamos el ID de la tarea al empezar el arrastre para:
-  // 1) Mostrar el DragOverlay con los datos de la tarea mientras se mueve
-  // 2) Poder identificar qué tarea movieron cuando termine el arrastre
+  const tareasFinalizadas = useMemo(() => columnas.Done || [], [columnas])
+
   function handleDragStart(event) {
     setActiveId(event.active.id)
   }
@@ -246,18 +167,12 @@ export default function Board() {
   async function handleDragEnd(event) {
     const { active, over } = event
     setActiveId(null)
-    // Si el usuario suelta la tarjeta fuera de cualquier zona de soltado (columna o tarjeta),
-    // cancelamos el movimiento: @dnd-kit dispara dragEnd incluso si se suelta en área vacía
     if (!over) return
 
     const tareaId = active.id
     let columnaDestino = null
     let nuevoOrden = 0
 
-    // @dnd-kit nos dice en over.id sobre qué elemento se soltó la tarjeta.
-    // Pueden darse dos casos:
-    // 1) Se soltó sobre una columna (el área vacía) → añadimos al final de esa columna
-    // 2) Se soltó sobre otra tarjeta → insertamos justo en la posición de esa tarjeta
     if (COLUMNAS.some((c) => c.id === over.id)) {
       columnaDestino = over.id
       nuevoOrden = columnas[over.id]?.length || 0
@@ -265,7 +180,6 @@ export default function Board() {
       const tareaOver = todasLasTareas.find((t) => t.codigo_tarea === over.id)
       if (!tareaOver) return
       columnaDestino = tareaOver.columna
-      // findIndex nos da la posición de la tarjeta sobre la que soltamos
       nuevoOrden = columnas[columnaDestino]?.findIndex((t) => t.codigo_tarea === over.id)
       if (nuevoOrden === -1) nuevoOrden = columnas[columnaDestino]?.length || 0
     }
@@ -275,60 +189,51 @@ export default function Board() {
     const tareaMovida = todasLasTareas.find((t) => t.codigo_tarea === tareaId)
     if (!tareaMovida) return
 
-    // Si la tarea no cambió de columna ni de posición, evitamos una llamada API innecesaria
     if (tareaMovida.columna === columnaDestino && tareaMovida.orden === nuevoOrden) return
 
-    // --- OPTIMISTIC UPDATE ---
-    // Actualizamos el estado local INMEDIATAMENTE para que el usuario vea el cambio
-    // sin esperar la respuesta del servidor. Si la API falla, hacemos rollback.
     const nuevas = { ...columnas }
-    // 1. Quitamos la tarea de su columna de origen
     for (const col of Object.keys(nuevas)) {
       nuevas[col] = nuevas[col].filter((t) => t.codigo_tarea !== tareaId)
     }
-    // 2. Insertamos la tarea en la posición correcta de la columna destino
     const itemActualizado = { ...tareaMovida, columna: columnaDestino, orden: nuevoOrden }
     nuevas[columnaDestino].splice(nuevoOrden, 0, itemActualizado)
-    // 3. Reasignamos el orden secuencial para que no haya huecos (0, 1, 2, 3...)
     nuevas[columnaDestino] = nuevas[columnaDestino].map((t, i) => ({ ...t, orden: i }))
     setColumnas(nuevas)
 
     try {
       await api.put(`/scrum/tareas/${tareaId}/mover`, { columna: columnaDestino, orden: itemActualizado.orden })
     } catch {
-      fetchTablero()  // Si la API falla, recargamos el estado desde el servidor (rollback)
+      fetchTablero()
     }
   }
 
-  // Al crear: limpiamos editando (modo "nueva tarea") y pre-seleccionamos la columna
-  // donde el usuario pulsó el botón "+"
   function abrirForm(columna) {
     setColumnaForm(columna)
     setEditando(null)
     setMostrarForm(true)
   }
 
-  // Al editar: pasamos la tarea completa para que TareaForm inicialice el formulario
   function editarTarea(tarea) {
     setColumnaForm(tarea.columna)
     setEditando(tarea)
     setMostrarForm(true)
   }
 
-  function confirmarEliminar(tarea) {
-    setTareaEliminar(tarea)
-  }
-
-  async function eliminarTarea() {
-    if (!tareaEliminar) return
-    try {
-      await api.delete(`/scrum/tareas/${tareaEliminar.codigo_tarea}`)
-      success("Tarea eliminada")
-      setTareaEliminar(null)
-      fetchTablero()
-    } catch {
-      toastError("Error al eliminar la tarea")
+  async function eliminarFinalizadas() {
+    const tareas = tareasFinalizadas
+    if (tareas.length === 0) return
+    let eliminadas = 0
+    for (const t of tareas) {
+      try {
+        await api.delete(`/scrum/tareas/${t.codigo_tarea}`)
+        eliminadas++
+      } catch {
+        // continue with next
+      }
     }
+    setMostrarConfirmEliminar(false)
+    success(`${eliminadas} tarea${eliminadas !== 1 ? "s" : ""} eliminada${eliminadas !== 1 ? "s" : ""}`)
+    fetchTablero()
   }
 
   if (cargando) return <LoadingSpinner mensaje="Cargando tablero..." />
@@ -363,7 +268,7 @@ export default function Board() {
               tareas={columnasFiltradas[col.id] || []}
               onAgregar={() => abrirForm(col.id)}
               onEditar={editarTarea}
-              onDelete={confirmarEliminar}
+              onEliminarFinalizadas={() => setMostrarConfirmEliminar(true)}
               usuarioMap={usuarioMap}
             />
           ))}
@@ -384,14 +289,14 @@ export default function Board() {
         />
       )}
 
-      {tareaEliminar && (
-        <div className="modal-overlay" onClick={() => setTareaEliminar(null)}>
+      {mostrarConfirmEliminar && (
+        <div className="modal-overlay" onClick={() => setMostrarConfirmEliminar(false)}>
           <div className="modal-content modal-confirm" onClick={(e) => e.stopPropagation()}>
-            <h3>Eliminar tarea</h3>
-            <p>¿Seguro que quieres eliminar "<strong>{tareaEliminar.titulo}</strong>"?</p>
+            <h3>Eliminar tareas finalizadas</h3>
+            <p>Se eliminaran <strong>{tareasFinalizadas.length}</strong> tarea{tareasFinalizadas.length !== 1 ? "s" : ""} de la columna "Terminado".</p>
             <div className="modal-actions">
-              <button className="btn-secundario" onClick={() => setTareaEliminar(null)}>Cancelar</button>
-              <button className="btn-peligro" onClick={eliminarTarea}>Eliminar</button>
+              <button className="btn-secundario" onClick={() => setMostrarConfirmEliminar(false)}>Cancelar</button>
+              <button className="btn-peligro" onClick={eliminarFinalizadas}>Eliminar {tareasFinalizadas.length} tarea{tareasFinalizadas.length !== 1 ? "s" : ""}</button>
             </div>
           </div>
         </div>
