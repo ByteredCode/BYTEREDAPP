@@ -71,6 +71,28 @@
 .fecha-limite { font-size: 0.7rem; color: var(--text-muted); }
 .kanban-card-asignacion { font-size: 0.7rem; color: var(--primary); margin-top: 0.25rem; }
 
+.kanban-card { position: relative; }
+.kanban-card-delete {
+  position: absolute; top: 0.3rem; right: 0.3rem;
+  width: 20px; height: 20px; border: none; border-radius: 50%;
+  background: transparent; color: var(--text-muted);
+  font-size: 0.85rem; line-height: 1; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.15s, background 0.15s, color 0.15s;
+  z-index: 2;
+}
+.kanban-card:hover .kanban-card-delete { opacity: 1; }
+.kanban-card-delete:hover { background: #c62828; color: #fff; }
+
+.btn-peligro {
+  background: #c62828; color: #fff; border: none;
+  padding: 0.5rem 1rem; border-radius: var(--radius); cursor: pointer;
+  font-size: 0.875rem; font-weight: 500;
+}
+.btn-peligro:hover { background: #b71c1c; }
+.modal-confirm { max-width: 360px; text-align: center; }
+.modal-confirm h3 { margin-bottom: 0.75rem; }
+
 .scrum-sprints { max-width: 900px; margin: 0 auto; }
 .sprints-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
 .sprints-header h2 { margin: 0; font-size: 1.35rem; }
