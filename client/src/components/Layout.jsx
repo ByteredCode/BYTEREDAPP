@@ -23,11 +23,12 @@ export default function Layout() {
             <Link to="/mi-empresa" className="nav-link">Mi Empresa</Link>
             <Link to="/scrum/tablero" className="nav-link">Scrum</Link>
             <Link to="/tickets/nuevo" className="nav-link">Nuevo Ticket</Link>
-            <Link to="/admin/tickets" className="nav-link">Tickets</Link>
-            <Link to="/admin/documentos" className="nav-link">Documentos</Link>
-            {/* startsWith("admin") cubre admin_total y admin_empresa sin duplicar condiciones */}
             {usuario.rol?.startsWith("admin") && (
-              <Link to="/admin/empresas" className="nav-link">Admin</Link>
+              <>
+                <Link to="/admin/tickets" className="nav-link">Tickets</Link>
+                <Link to="/admin/documentos" className="nav-link">Documentos</Link>
+                <Link to="/admin/empresas" className="nav-link">Admin</Link>
+              </>
             )}
           </div>
           <div className="nav-right">

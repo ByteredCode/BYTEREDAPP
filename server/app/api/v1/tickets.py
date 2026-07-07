@@ -7,13 +7,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import config
-from app.core.dependencies import get_db, get_tenant_filter, get_usuario_actual
+from app.core.dependencies import get_db, get_tenant_filter, get_usuario_actual, require_servicio
 from app.core.limiter import limiter
 from app.models.empresa import Empresa
 from app.models.usuario import Usuario
 from app.schemas.admin import Paginacion
 from app.schemas.ticket import TicketCreate, TicketResponse, TicketUpdateEstado
-from app.services.email_service import enviar_correo_sync
+from app.services.email_service import enviar_correo
 from app.services.ticket_service import (
     actualizar_estado_ticket,
     crear_ticket,
@@ -88,7 +88,7 @@ async def post_ticket(
             f"Importancia: {ticket.nivel_importancia}\n\n"
             f"Mensaje:\n{ticket.mensaje}"
         )
-        enviar_correo_sync(config.TICKETS_EMAIL, asunto_email, cuerpo)
+        await enviar_correo(config.TICKETS_EMAIL, asunto_email, cuerpo)
 
     return ticket
 
@@ -98,6 +98,7 @@ async def get_tickets(
     db: AsyncSession = Depends(get_db),
     codigo_empresa: int = Depends(get_tenant_filter),
     pag: Paginacion = Depends(),
+    _servicio: None = Depends(require_servicio("tickets")),
 ):
     items, total = await listar_tickets(db, codigo_empresa, pag.skip, pag.limit)
     return {"items": items, "total": total}
@@ -108,6 +109,7 @@ async def get_ticket(
     id_reporte: int,
     db: AsyncSession = Depends(get_db),
     codigo_empresa: int = Depends(get_tenant_filter),
+    _servicio: None = Depends(require_servicio("tickets")),
 ):
     return await obtener_ticket(db, id_reporte, codigo_empresa)
 
@@ -118,6 +120,7 @@ async def put_estado_ticket(
     data: TicketUpdateEstado,
     db: AsyncSession = Depends(get_db),
     codigo_empresa: int = Depends(get_tenant_filter),
+    _servicio: None = Depends(require_servicio("tickets")),
 ):
     # Se permite incluir una respuesta (texto) al cambiar el estado para que
     # el admin pueda comunicarse con el reportante sin usar otro canal
@@ -130,6 +133,7 @@ async def delete_ticket(
     db: AsyncSession = Depends(get_db),
     codigo_empresa: int = Depends(get_tenant_filter),
     usuario: Usuario = Depends(get_usuario_actual),
+    _servicio: None = Depends(require_servicio("tickets")),
 ):
     if usuario.rol != "admin_total":
         from fastapi import HTTPException, status
