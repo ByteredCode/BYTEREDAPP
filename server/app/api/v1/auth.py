@@ -12,10 +12,11 @@ from app.core.security import (
     crear_refresh_token,
     decodificar_token,
 )
-from app.schemas.auth import LoginRequest, LogoutRequest, TokenResponse, UsuarioResponse
-from app.services.auth_service import cerrar_sesion, iniciar_sesion
+from app.schemas.auth import LoginRequest, LogoutRequest, RegisterRequest, TokenResponse, UsuarioResponse
+from app.services.auth_service import cerrar_sesion, iniciar_sesion, registrar_usuario
 from sqlalchemy import select
 from app.models.usuario import Usuario
+from app.models.empresa import Empresa
 
 logger = logging.getLogger("byteredapp.auth")
 router = APIRouter(tags=["Auth"])
@@ -30,6 +31,35 @@ async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends
     return TokenResponse(
         access_token=resultado["tokens"]["access_token"],
         refresh_token=resultado["tokens"]["refresh_token"],
+        token_type="bearer",
+        usuario=UsuarioResponse(
+            codigo_usuario=usuario.codigo_usuario,
+            correo=usuario.correo,
+            nombre=usuario.nombre,
+            rol=usuario.rol,
+            codigo_empresa=usuario.codigo_empresa,
+        ),
+    )
+
+
+@router.post("/auth/register", response_model=TokenResponse, status_code=201)
+@limiter.limit("5/minute")
+async def register(request: Request, body: RegisterRequest, db: AsyncSession = Depends(get_db)):
+    # Validar que la empresa existe antes de registrar
+    existe_empresa = await db.execute(
+        select(Empresa).where(Empresa.codigo_empresa == body.codigo_empresa).limit(1)
+    )
+    if not existe_empresa.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Empresa no valida")
+
+    usuario = await registrar_usuario(db, body.correo, body.contrasena, body.nombre, body.codigo_empresa)
+    logger.info("Registro exitoso: usuario %s, empresa %s", usuario.codigo_usuario, usuario.codigo_empresa)
+
+    access_token = crear_access_token({"sub": str(usuario.codigo_usuario), "empresa": usuario.codigo_empresa})
+    refresh_token = crear_refresh_token({"sub": str(usuario.codigo_usuario)})
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
         token_type="bearer",
         usuario=UsuarioResponse(
             codigo_usuario=usuario.codigo_usuario,
