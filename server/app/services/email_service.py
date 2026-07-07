@@ -1,4 +1,6 @@
+import asyncio
 import logging
+from functools import partial
 
 import resend
 
@@ -10,7 +12,7 @@ if config.RESEND_API_KEY:
     resend.api_key = config.RESEND_API_KEY
 
 
-def enviar_correo_sync(destinatario: str, asunto: str, cuerpo: str) -> bool:
+def _enviar_correo_sync(destinatario: str, asunto: str, cuerpo: str) -> bool:
     if not config.RESEND_API_KEY:
         logger.warning("RESEND_API_KEY no configurada, correo no enviado")
         return False
@@ -27,3 +29,8 @@ def enviar_correo_sync(destinatario: str, asunto: str, cuerpo: str) -> bool:
     except Exception as e:
         logger.error(f"Error enviando correo via Resend: {e}")
         return False
+
+
+async def enviar_correo(destinatario: str, asunto: str, cuerpo: str) -> bool:
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, partial(_enviar_correo_sync, destinatario, asunto, cuerpo))

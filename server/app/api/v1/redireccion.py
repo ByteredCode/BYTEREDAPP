@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.models.empresa import Empresa
+from app.models.empresa import Empresa, EmpresaServicio
 
 router = APIRouter(tags=["Redireccion"])
 
@@ -34,6 +34,16 @@ async def redirigir(codigo_empresa: int, db: AsyncSession = Depends(get_db)):
     empresa = resultado.scalar_one_or_none()
     if not empresa or not empresa.web:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Empresa o enlace no configurado")
+    # Verificar que el servicio de redireccion esta activo
+    svc = await db.execute(
+        select(EmpresaServicio).where(
+            EmpresaServicio.codigo_empresa == codigo_empresa,
+            EmpresaServicio.servicio == "redireccion",
+            EmpresaServicio.activo == True,
+        ).limit(1)
+    )
+    if not svc.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Servicio no disponible")
     # Validamos el esquema de la URL para evitar open redirect que permita
     # redirigir a protocolos peligrosos como file://, javascript: o data:
     parsed = urlparse(empresa.web)

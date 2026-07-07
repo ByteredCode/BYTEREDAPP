@@ -7,6 +7,7 @@ import { useAuth } from "../../context/AuthContext"
 import { useToast } from "../../context/ToastContext"
 import LoadingSpinner from "../../components/common/LoadingSpinner"
 import TareaForm from "./TareaForm"
+import useUsuarios from "../../hooks/useUsuarios"
 
 const COLUMNAS = [
   { id: "Todo", titulo: "Por hacer" },
@@ -95,7 +96,7 @@ export default function Board() {
   const [cargando, setCargando] = useState(true)
   const { usuario } = useAuth()
   const { success, error: toastError } = useToast()
-  const [usuarios, setUsuarios] = useState([])
+  const { usuarios } = useUsuarios()
   const [filtroUsuario, setFiltroUsuario] = useState("")
   const [mostrarConfirmEliminar, setMostrarConfirmEliminar] = useState(false)
 
@@ -122,22 +123,8 @@ export default function Board() {
     }
   }, [])
 
-  const fetchUsuarios = useCallback(async () => {
-    const intentos = [
-      api.get("/empresa/mi-empresa/usuarios").then(r => r.data),
-      api.get("/admin/usuarios", { params: { limit: 200 } }).then(r => r.data.items || r.data),
-      usuario?.codigo_empresa
-        ? api.get(`/admin/empresas/${usuario.codigo_empresa}/usuarios`, { params: { limit: 200 } }).then(r => r.data.items || r.data)
-        : Promise.reject(),
-    ]
-    const resultados = await Promise.allSettled(intentos)
-    const exitoso = resultados.find(r => r.status === "fulfilled")
-    if (exitoso) setUsuarios(exitoso.value)
-  }, [usuario])
-
   useEffect(() => { fetchTablero() }, [fetchTablero])
   useEffect(() => { fetchSprints() }, [fetchSprints])
-  useEffect(() => { fetchUsuarios() }, [fetchUsuarios])
 
   const todasLasTareas = useMemo(() => Object.values(columnas).flat(), [columnas])
   const activeTarea = useMemo(() => todasLasTareas.find((t) => t.codigo_tarea === activeId), [todasLasTareas, activeId])

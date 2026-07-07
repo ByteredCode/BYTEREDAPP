@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.security import decodificar_token
 from app.models.usuario import Usuario
+from app.models.empresa import EmpresaServicio
 
 # HTTPBearer extrae el token del header "Authorization: Bearer <token>"
 # auto_error=False: no lanza error 403 automaticamente si falta el token
@@ -49,3 +50,22 @@ async def get_usuario_actual(
 # asi un mismo pool de conexiones sirve a todas las empresas sin riesgo de mezclar datos
 def get_tenant_filter(usuario: Usuario = Depends(get_usuario_actual)) -> int:
     return usuario.codigo_empresa
+
+
+def require_servicio(nombre_servicio: str):
+    async def _check(usuario: Usuario = Depends(get_usuario_actual), db: AsyncSession = Depends(get_db)):
+        if usuario.rol in ("admin_total", "admin_empresa"):
+            return
+        resultado = await db.execute(
+            select(EmpresaServicio).where(
+                EmpresaServicio.codigo_empresa == usuario.codigo_empresa,
+                EmpresaServicio.servicio == nombre_servicio,
+                EmpresaServicio.activo == True,
+            ).limit(1)
+        )
+        if not resultado.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"El servicio {nombre_servicio} no esta activo para tu empresa",
+            )
+    return _check

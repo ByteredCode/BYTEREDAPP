@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_db, get_tenant_filter
+from app.core.dependencies import get_db, get_tenant_filter, require_servicio
 from app.core.limiter import limiter
 from app.schemas.admin import Paginacion
 from app.schemas.tarea import (
@@ -28,7 +28,11 @@ from app.services.scrum_service import (
     obtener_tarea,
 )
 
-router = APIRouter(prefix="/scrum", tags=["Scrum"])
+router = APIRouter(
+    prefix="/scrum",
+    tags=["Scrum"],
+    dependencies=[Depends(require_servicio("scrum"))],
+)
 
 
 @router.get("/tablero")

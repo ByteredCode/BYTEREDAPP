@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Query, Request, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.dependencies import get_db, get_tenant_filter, get_usuario_actual
+from app.core.dependencies import get_db, get_tenant_filter, get_usuario_actual, require_servicio
 from app.core.limiter import limiter
 from app.models.usuario import Usuario
 from app.schemas.admin import Paginacion
@@ -22,7 +22,11 @@ from app.services.documento_service import (
     subir_documento,
 )
 
-router = APIRouter(prefix="/documentos", tags=["Documentos"])
+router = APIRouter(
+    prefix="/documentos",
+    tags=["Documentos"],
+    dependencies=[Depends(require_servicio("documentacion"))],
+)
 logger = logging.getLogger(__name__)
 
 
@@ -63,8 +67,23 @@ async def get_documento(
     id_documento: int,
     db: AsyncSession = Depends(get_db),
     codigo_empresa: int = Depends(get_tenant_filter),
+    usuario: Usuario = Depends(get_usuario_actual),
 ):
-    return await obtener_documento(db, id_documento, codigo_empresa)
+    doc = await obtener_documento(db, id_documento, codigo_empresa)
+    es_admin = usuario.rol in ("admin_total", "admin_empresa")
+    if not es_admin and doc.usuario_subio != usuario.codigo_usuario:
+        from sqlalchemy import select as sa_select
+        from app.models.documento import DocumentoPermiso
+        permiso = await db.execute(
+            sa_select(DocumentoPermiso).where(
+                DocumentoPermiso.id_documento == id_documento,
+                DocumentoPermiso.codigo_usuario == usuario.codigo_usuario,
+            ).limit(1)
+        )
+        if not permiso.scalar_one_or_none():
+            from fastapi import HTTPException
+            raise HTTPException(status_code=403, detail="No tienes acceso a este documento")
+    return doc
 
 
 MIME_TYPES = {
@@ -84,8 +103,22 @@ async def descargar_documento(
     id_documento: int,
     db: AsyncSession = Depends(get_db),
     codigo_empresa: int = Depends(get_tenant_filter),
+    usuario: Usuario = Depends(get_usuario_actual),
 ):
     doc = await obtener_documento(db, id_documento, codigo_empresa)
+    es_admin = usuario.rol in ("admin_total", "admin_empresa")
+    if not es_admin and doc.usuario_subio != usuario.codigo_usuario:
+        from sqlalchemy import select as sa_select
+        from app.models.documento import DocumentoPermiso
+        permiso = await db.execute(
+            sa_select(DocumentoPermiso).where(
+                DocumentoPermiso.id_documento == id_documento,
+                DocumentoPermiso.codigo_usuario == usuario.codigo_usuario,
+            ).limit(1)
+        )
+        if not permiso.scalar_one_or_none():
+            from fastapi import HTTPException
+            raise HTTPException(status_code=403, detail="No tienes acceso a este documento")
     ruta = await obtener_ruta_archivo(doc)
     ext = os.path.splitext(doc.nombre)[1].lower() if doc.nombre else ""
     media_type = MIME_TYPES.get(ext, "application/octet-stream")

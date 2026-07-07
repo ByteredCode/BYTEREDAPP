@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import api from "../../api/axios"
 import { useToast } from "../../context/ToastContext"
-import { useAuth } from "../../context/AuthContext"
+import useUsuarios from "../../hooks/useUsuarios"
 
 // Arrays fijos para los select del formulario; se definen fuera del componente
 // para que no se recree la referencia en cada renderizado
@@ -17,26 +17,7 @@ const COLUMNAS = [
 // la columna por defecto, la lista de sprints y callbacks para notificar cambios
 export default function TareaForm({ editando, columna, sprints, sprintActivo, onClose, onSaved }) {
   const { showToast } = useToast()
-  const { usuario } = useAuth()
-  const [usuarios, setUsuarios] = useState([])
-
-  useEffect(() => {
-    let cancel = false
-    async function cargarUsuarios() {
-      const intentos = [
-        api.get("/empresa/mi-empresa/usuarios").then(r => r.data),
-        api.get("/admin/usuarios", { params: { limit: 200 } }).then(r => r.data.items || r.data),
-        usuario?.codigo_empresa
-          ? api.get(`/admin/empresas/${usuario.codigo_empresa}/usuarios`, { params: { limit: 200 } }).then(r => r.data.items || r.data)
-          : Promise.reject(),
-      ]
-      const resultados = await Promise.allSettled(intentos)
-      const exitoso = resultados.find(r => r.status === "fulfilled")
-      if (exitoso && !cancel) setUsuarios(exitoso.value)
-    }
-    cargarUsuarios()
-    return () => { cancel = true }
-  }, [usuario])
+  const { usuarios } = useUsuarios()
   // Inicializamos el formulario con los datos de la tarea a editar (si existe)
   // o con valores por defecto. Usamos || en vez de ?? porque queremos tratar
   // los strings vacíos igual que undefined (ej. fecha_limite "")
