@@ -8,6 +8,7 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-
 import { CSS } from "@dnd-kit/utilities"
 import api from "../../api/axios"
 import { useAuth } from "../../context/AuthContext"
+import { useToast } from "../../context/ToastContext"
 import LoadingSpinner from "../../components/common/LoadingSpinner"
 import TareaForm from "./TareaForm"
 
@@ -24,7 +25,7 @@ const COLUMNAS = [
 // Cada tarjeta es un componente independiente con su propio hook useSortable.
 // Lo separamos de Columna para que React solo re-renderice la tarjeta que se
 // está arrastrando, no todas las tarjetas del tablero
-function SortableCard({ tarea, onClick, usuarioMap }) {
+function SortableCard({ tarea, onClick, onDelete, usuarioMap }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: tarea.codigo_tarea,
   })
@@ -32,17 +33,14 @@ function SortableCard({ tarea, onClick, usuarioMap }) {
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.4 : 1,  // Efecto fantasma durante el arrastre
+    opacity: isDragging ? 0.4 : 1,
   }
 
   const prioridadClase = `prioridad-${tarea.prioridad?.toLowerCase() || "media"}`
 
-  // setNodeRef, attributes y listeners son inyectados por useSortable y son obligatorios:
-  // - setNodeRef vincula este nodo DOM al sistema de detección de @dnd-kit
-  // - attributes añade los atributos ARIA necesarios para accesibilidad
-  // - listeners captura los eventos de puntero/ratón para iniciar el arrastre
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="kanban-card">
+      <button className="kanban-card-delete" onClick={(e) => { e.stopPropagation(); onDelete(tarea) }} title="Eliminar tarea">×</button>
       <div className="kanban-card-content" onClick={() => onClick(tarea)}>
         <div className="kanban-card-titulo">{tarea.titulo}</div>
         <div className="kanban-card-meta">
@@ -78,9 +76,7 @@ function CardPreview({ tarea }) {
 // sepa que las tarjetas solo se reordenan dentro de su propia columna
 // (no se pueden mezclar entre columnas a nivel de lista, el cambio de columna
 // se maneja en handleDragEnd)
-function Columna({ id, titulo, tareas, onAgregar, onEditar, usuarioMap }) {
-  // useDroppable hace que la columna sea una zona de soltado válida para @dnd-kit,
-  // necesaria para arrastrar tarjetas entre columnas (no solo dentro de la misma)
+function Columna({ id, titulo, tareas, onAgregar, onEditar, onDelete, usuarioMap }) {
   const { setNodeRef, isOver } = useDroppable({ id })
   const ids = tareas.map((t) => t.codigo_tarea)
 
@@ -94,7 +90,7 @@ function Columna({ id, titulo, tareas, onAgregar, onEditar, usuarioMap }) {
       <SortableContext items={ids} strategy={verticalListSortingStrategy}>
         <div ref={setNodeRef} className={`kanban-columna-body${isOver ? " kanban-columna-over" : ""}`}>
           {tareas.map((tarea) => (
-            <SortableCard key={tarea.codigo_tarea} tarea={tarea} onClick={() => onEditar(tarea)} usuarioMap={usuarioMap} />
+            <SortableCard key={tarea.codigo_tarea} tarea={tarea} onClick={() => onEditar(tarea)} onDelete={onDelete} usuarioMap={usuarioMap} />
           ))}
         </div>
       </SortableContext>
@@ -114,8 +110,10 @@ export default function Board() {
   const [columnaForm, setColumnaForm] = useState("Todo")  // Columna preseleccionada al crear tarea
   const [cargando, setCargando] = useState(true)
   const { usuario } = useAuth()
+  const { success, error: toastError } = useToast()
   const [usuarios, setUsuarios] = useState([])
   const [filtroUsuario, setFiltroUsuario] = useState("")
+  const [tareaEliminar, setTareaEliminar] = useState(null)
 
   // PointerSensor con distance:5 para que un click normal NO inicie el drag.
   // El usuario debe mover el ratón al menos 5px para que se active el arrastre,
@@ -276,11 +274,26 @@ export default function Board() {
   }
 
   // Al editar: pasamos la tarea completa para que TareaForm inicialice el formulario
-  // con los valores actuales (modo "editar tarea")
   function editarTarea(tarea) {
     setColumnaForm(tarea.columna)
     setEditando(tarea)
     setMostrarForm(true)
+  }
+
+  function confirmarEliminar(tarea) {
+    setTareaEliminar(tarea)
+  }
+
+  async function eliminarTarea() {
+    if (!tareaEliminar) return
+    try {
+      await api.delete(`/scrum/tareas/${tareaEliminar.codigo_tarea}`)
+      success("Tarea eliminada")
+      setTareaEliminar(null)
+      fetchTablero()
+    } catch {
+      toastError("Error al eliminar la tarea")
+    }
   }
 
   if (cargando) return <LoadingSpinner mensaje="Cargando tablero..." />
@@ -315,6 +328,7 @@ export default function Board() {
               tareas={columnasFiltradas[col.id] || []}
               onAgregar={() => abrirForm(col.id)}
               onEditar={editarTarea}
+              onDelete={confirmarEliminar}
               usuarioMap={usuarioMap}
             />
           ))}
@@ -333,6 +347,19 @@ export default function Board() {
           onClose={() => setMostrarForm(false)}
           onSaved={fetchTablero}
         />
+      )}
+
+      {tareaEliminar && (
+        <div className="modal-overlay" onClick={() => setTareaEliminar(null)}>
+          <div className="modal-content modal-confirm" onClick={(e) => e.stopPropagation()}>
+            <h3>Eliminar tarea</h3>
+            <p>¿Seguro que quieres eliminar "<strong>{tareaEliminar.titulo}</strong>"?</p>
+            <div className="modal-actions">
+              <button className="btn-secundario" onClick={() => setTareaEliminar(null)}>Cancelar</button>
+              <button className="btn-peligro" onClick={eliminarTarea}>Eliminar</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
