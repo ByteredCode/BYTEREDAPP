@@ -38,6 +38,7 @@
   padding: 0.5rem 0.5rem 0.75rem;
   border-bottom: 2px solid var(--border);
   margin-bottom: 0.75rem;
+  flex-wrap: wrap;
 }
 .kanban-columna-header h3 { margin: 0; font-size: 0.9rem; font-weight: 600; flex: 1; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); }
 .kanban-count { background: var(--border); color: var(--text-muted); font-size: 0.7rem; border-radius: 12px; padding: 0.15rem 0.5rem; font-weight: 600; }
@@ -56,7 +57,6 @@
   padding: 0.75rem; box-shadow: var(--shadow-sm);
   cursor: grab; transition: box-shadow 0.2s, transform 0.15s;
   user-select: none; border: 1px solid var(--border-light);
-  position: relative;
 }
 .kanban-card:hover { box-shadow: var(--shadow-md); }
 .kanban-card:active { cursor: grabbing; }
@@ -72,15 +72,13 @@
 .fecha-limite { font-size: 0.7rem; color: var(--text-muted); }
 .kanban-card-asignacion { font-size: 0.7rem; color: var(--primary); margin-top: 0.25rem; }
 
-.kanban-card-delete {
-  width: 22px; height: 22px; border: none; border-radius: 50%;
-  background: rgba(0,0,0,0.06); color: var(--text-muted);
-  font-size: 0.9rem; line-height: 1; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: background 0.15s, color 0.15s;
-  pointer-events: all;
+.btn-eliminar-finalizadas {
+  background: none; border: 1px solid #c62828; color: #c62828;
+  border-radius: var(--radius); padding: 0.2rem 0.5rem;
+  font-size: 0.65rem; font-weight: 600; cursor: pointer;
+  transition: background 0.15s, color 0.15s; white-space: nowrap;
 }
-.kanban-card-delete:hover { background: #c62828; color: #fff; }
+.btn-eliminar-finalizadas:hover { background: #c62828; color: #fff; }
 
 .btn-peligro {
   background: #c62828; color: #fff; border: none;
