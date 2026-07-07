@@ -1,4 +1,5 @@
 from typing import Optional
+import os
 import logging
 
 from fastapi import APIRouter, Depends, Query, UploadFile, File, Form
@@ -63,17 +64,29 @@ async def get_documento(
     return await obtener_documento(db, id_documento, codigo_empresa)
 
 
+MIME_TYPES = {
+    ".pdf": "application/pdf",
+    ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+    ".png": "image/png", ".gif": "image/gif",
+    ".doc": "application/msword",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".xls": "application/vnd.ms-excel",
+    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ".txt": "text/plain",
+}
+
+
 @router.get("/{id_documento}/descargar")
 async def descargar_documento(
     id_documento: int,
     db: AsyncSession = Depends(get_db),
     codigo_empresa: int = Depends(get_tenant_filter),
 ):
-    # Primero se obtiene el documento (con verificación de tenant) para confirmar
-    # que existe y pertenece a la empresa; luego se resuelve la ruta física del archivo
     doc = await obtener_documento(db, id_documento, codigo_empresa)
     ruta = await obtener_ruta_archivo(doc)
-    return FileResponse(ruta, filename=doc.nombre, media_type="application/octet-stream")
+    ext = os.path.splitext(doc.nombre)[1].lower() if doc.nombre else ""
+    media_type = MIME_TYPES.get(ext, "application/octet-stream")
+    return FileResponse(ruta, filename=doc.nombre, media_type=media_type)
 
 
 @router.delete("/{id_documento}", status_code=204)
@@ -81,6 +94,7 @@ async def delete_documento(
     id_documento: int,
     db: AsyncSession = Depends(get_db),
     codigo_empresa: int = Depends(get_tenant_filter),
+    usuario: Usuario = Depends(get_usuario_actual),
 ):
     await eliminar_documento(db, id_documento, codigo_empresa)
 
