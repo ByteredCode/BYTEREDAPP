@@ -5,10 +5,18 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.ticket import Ticket
+from app.models.empresa import Empresa
 from app.schemas.ticket import TicketCreate
 
 
 async def crear_ticket(db: AsyncSession, data: TicketCreate, codigo_usuario: int = None) -> Ticket:
+    # Validación defensiva: la empresa debe existir
+    existe = await db.execute(
+        select(Empresa).where(Empresa.codigo_empresa == data.codigo_empresa).limit(1)
+    )
+    if not existe.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Empresa no válida")
+
     ticket = Ticket(
         codigo_usuario=codigo_usuario,
         nombre_contacto=data.nombre_contacto,

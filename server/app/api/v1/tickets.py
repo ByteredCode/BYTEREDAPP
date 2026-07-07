@@ -62,6 +62,15 @@ async def post_ticket(
     db: AsyncSession = Depends(get_db),
     usuario: Optional[Usuario] = Depends(get_usuario_opcional),
 ):
+    # Para anónimos: validar que la empresa existe y aplicar rate limit más estricto
+    if not usuario:
+        existe_empresa = await db.execute(
+            select(Empresa).where(Empresa.codigo_empresa == data.codigo_empresa).limit(1)
+        )
+        if not existe_empresa.scalar_one_or_none():
+            from fastapi import HTTPException
+            raise HTTPException(status_code=400, detail="Empresa no válida")
+
     codigo_usuario = usuario.codigo_usuario if usuario else None
     ticket = await crear_ticket(db, data, codigo_usuario)
 

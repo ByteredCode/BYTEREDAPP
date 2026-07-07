@@ -47,15 +47,21 @@ async def refresh(request: Request, refresh_token: str = Body(..., embed=True), 
     payload = await decodificar_token(refresh_token)
     if payload is None or payload.get("tipo") != "refresh":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token invalido")
-    jti_anterior = payload.get("jti")
-    if jti_anterior:
-        await agregar_a_blocklist(jti_anterior)
-    access_token = crear_access_token({"sub": str(payload["sub"]), "empresa": payload.get("empresa")})
-    nuevo_refresh = crear_refresh_token({"sub": str(payload["sub"])})
+
+    # Validar que el usuario existe y sigue activo ANTES de generar nuevos tokens
     result = await db.execute(
         select(Usuario).where(Usuario.codigo_usuario == int(payload["sub"])).limit(1)
     )
     usuario = result.scalar_one_or_none()
+    if not usuario:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuario no encontrado o eliminado")
+
+    jti_anterior = payload.get("jti")
+    if jti_anterior:
+        await agregar_a_blocklist(jti_anterior)
+
+    access_token = crear_access_token({"sub": str(usuario.codigo_usuario), "empresa": usuario.codigo_empresa})
+    nuevo_refresh = crear_refresh_token({"sub": str(usuario.codigo_usuario)})
     return TokenResponse(
         access_token=access_token,
         refresh_token=nuevo_refresh,
@@ -65,12 +71,6 @@ async def refresh(request: Request, refresh_token: str = Body(..., embed=True), 
             nombre=usuario.nombre,
             rol=usuario.rol,
             codigo_empresa=usuario.codigo_empresa,
-        ) if usuario else UsuarioResponse(
-            codigo_usuario=0,
-            correo="",
-            nombre="",
-            rol="",
-            codigo_empresa=0,
         ),
     )
 
