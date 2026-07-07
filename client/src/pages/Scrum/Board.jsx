@@ -232,8 +232,15 @@ export default function Board() {
       }
     }
     setMostrarConfirmEliminar(false)
+    setColumnas(prev => ({ ...prev, Done: [] }))
     success(`${eliminadas} tarea${eliminadas !== 1 ? "s" : ""} eliminada${eliminadas !== 1 ? "s" : ""}`)
-    fetchTablero()
+    try {
+      const params = sprintActivo ? { codigo_sprint: Number(sprintActivo) } : {}
+      const res = await api.get("/scrum/tablero", { params })
+      setColumnas(res.data)
+    } catch {
+      // silent
+    }
   }
 
   if (cargando) return <LoadingSpinner mensaje="Cargando tablero..." />
@@ -291,10 +298,10 @@ export default function Board() {
 
       {mostrarConfirmEliminar && (
         <div className="modal-overlay" onClick={() => setMostrarConfirmEliminar(false)}>
-          <div className="modal-content modal-confirm" onClick={(e) => e.stopPropagation()}>
+          <div className="modal modal-confirm" onClick={(e) => e.stopPropagation()}>
             <h3>Eliminar tareas finalizadas</h3>
             <p>Se eliminaran <strong>{tareasFinalizadas.length}</strong> tarea{tareasFinalizadas.length !== 1 ? "s" : ""} de la columna "Terminado".</p>
-            <div className="modal-actions">
+            <div className="modal-acciones">
               <button className="btn-secundario" onClick={() => setMostrarConfirmEliminar(false)}>Cancelar</button>
               <button className="btn-peligro" onClick={eliminarFinalizadas}>Eliminar {tareasFinalizadas.length} tarea{tareasFinalizadas.length !== 1 ? "s" : ""}</button>
             </div>

@@ -86,8 +86,9 @@
   font-size: 0.875rem; font-weight: 500;
 }
 .btn-peligro:hover { background: #b71c1c; }
-.modal-confirm { max-width: 360px; text-align: center; }
+.modal-confirm { max-width: 380px; text-align: center; }
 .modal-confirm h3 { margin-bottom: 0.75rem; }
+.modal-confirm p { margin-bottom: 1.25rem; color: var(--text-secondary); }
 
 .scrum-sprints { max-width: 900px; margin: 0 auto; }
 .sprints-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
