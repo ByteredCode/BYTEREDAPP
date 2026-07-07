@@ -2,7 +2,8 @@
 // - Permite un DragOverlay personalizado que sigue al cursor
 // - PointerSensor evita que clicks accidentales activen el drag
 // - SortableContext maneja el reordenamiento interno de cada columna
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
+import { createPortal } from "react-dom"
 import { DndContext, DragOverlay, PointerSensor, useDroppable, useSensor, useSensors } from "@dnd-kit/core"
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
@@ -29,6 +30,24 @@ function SortableCard({ tarea, onClick, onDelete, usuarioMap }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: tarea.codigo_tarea,
   })
+  const cardRef = useRef(null)
+  const [rect, setRect] = useState(null)
+
+  const mergedRef = useCallback((node) => {
+    cardRef.current = node
+    setNodeRef(node)
+  }, [setNodeRef])
+
+  useEffect(() => {
+    if (!cardRef.current) return
+    const update = () => {
+      if (cardRef.current) setRect(cardRef.current.getBoundingClientRect())
+    }
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(cardRef.current)
+    return () => observer.disconnect()
+  }, [])
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -38,9 +57,19 @@ function SortableCard({ tarea, onClick, onDelete, usuarioMap }) {
 
   const prioridadClase = `prioridad-${tarea.prioridad?.toLowerCase() || "media"}`
 
+  const deleteBtn = rect && createPortal(
+    <button
+      className="kanban-card-delete"
+      style={{ position: "fixed", top: rect.top + 4, left: rect.right - 26, zIndex: 9999 }}
+      onClick={(e) => { e.stopPropagation(); onDelete(tarea) }}
+      title="Eliminar tarea"
+    >×</button>,
+    document.body
+  )
+
   return (
-    <div className="kanban-card-wrapper">
-      <div ref={setNodeRef} style={style} className="kanban-card" {...attributes} {...listeners}>
+    <>
+      <div ref={mergedRef} style={style} className="kanban-card" {...attributes} {...listeners}>
         <div className="kanban-card-content" onClick={() => onClick(tarea)}>
           <div className="kanban-card-titulo">{tarea.titulo}</div>
           <div className="kanban-card-meta">
@@ -50,8 +79,8 @@ function SortableCard({ tarea, onClick, onDelete, usuarioMap }) {
           {tarea.asignacion && <div className="kanban-card-asignacion">{usuarioMap?.[tarea.asignacion] || `#${tarea.asignacion}`}</div>}
         </div>
       </div>
-      <button className="kanban-card-delete" onClick={() => onDelete(tarea)} title="Eliminar tarea">×</button>
-    </div>
+      {deleteBtn}
+    </>
   )
 }
 
