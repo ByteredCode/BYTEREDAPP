@@ -16,6 +16,7 @@ from app.core.database import Base, get_db
 from app.core.config import config
 from app.core.security import crear_access_token
 from app.models.empresa import Empresa
+from app.models.empresa_servicio import EmpresaServicio
 from app.models.usuario import Usuario
 from app.models.tarea import Tarea
 from app.models.sprint import Sprint
@@ -104,6 +105,14 @@ async def test_empresa(test_session):
     # Empresa mínima para los tests que necesitan un tenant multi-empresa
     empresa = Empresa(nombre="Empresa Test")
     test_session.add(empresa)
+    await test_session.flush()
+    # Servicios por defecto activos (scrum, tickets, documentacion, redireccion)
+    for svc in ("scrum", "tickets", "documentacion", "redireccion"):
+        test_session.add(EmpresaServicio(
+            codigo_empresa=empresa.codigo_empresa,
+            servicio=svc,
+            activo=True,
+        ))
     await test_session.flush()
     return empresa
 

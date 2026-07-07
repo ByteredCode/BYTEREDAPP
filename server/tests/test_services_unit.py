@@ -148,6 +148,7 @@ async def test_crear_ticket_anonimo():
 
     data = TicketCreate(
         nombre_contacto="Anonimo",
+        correo_contacto="anonimo@test.com",
         mensaje="Sin cuenta",
         codigo_empresa=1,
     )

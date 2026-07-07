@@ -26,6 +26,7 @@ class TestTickets:
     async def test_crear_ticket_autenticado(self, client: AsyncClient, headers_usuario, test_empresa):
         # Un usuario autenticado también puede crear tickets; el backend asocia su user_id al ticket
         payload = {
+            "correo_contacto": "usuario@test.com",
             "asunto": "Ticket autenticado",
             "mensaje": "Soy usuario registrado",
             "codigo_empresa": test_empresa.codigo_empresa,

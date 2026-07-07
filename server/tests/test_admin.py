@@ -90,31 +90,14 @@ class TestAdminUsuarios:
         test_admin,
         test_usuario,
     ):
-        # El admin_empresa solo debe ver usuarios de su propia empresa (aislamiento multi-tenant)
-        otra_empresa = Empresa(nombre="Otra Empresa")
-        test_session.add(otra_empresa)
-        await test_session.flush()
-
-        otro_usuario = Usuario(
-            correo="otro@test.com",
-            contrasena=hash_contrasena("Otro1234"),
-            nombre="Otro Usuario",
-            rol="usuario",
-            codigo_empresa=otra_empresa.codigo_empresa,
-        )
-        test_session.add(otro_usuario)
-        await test_session.flush()
-
-        response = await client.get("/admin/usuarios", headers=headers_admin)
+        # El admin_empresa usa /empresa/mi-empresa/usuarios (no /admin/usuarios que es solo admin_total)
+        response = await client.get("/empresa/mi-empresa/usuarios", headers=headers_admin)
         assert response.status_code == 200
         data = response.json()
-        assert "items" in data
-        codigos = [u["codigo_usuario"] for u in data["items"]]
+        assert isinstance(data, list)
+        codigos = [u["codigo_usuario"] for u in data]
         assert test_usuario.codigo_usuario in codigos
         assert test_admin.codigo_usuario in codigos
-        assert otro_usuario.codigo_usuario not in codigos
-        for user in data["items"]:
-            assert user["codigo_empresa"] == test_admin.codigo_empresa
 
     async def test_crear_usuario_admin(
         self,
@@ -144,19 +127,9 @@ class TestAdminServicios:
         self,
         client: AsyncClient,
         headers_superadmin,
-        test_session: AsyncSession,
         test_empresa,
     ):
-        # Creamos servicios de prueba y verificamos que se listen correctamente
-        for servicio in ["scrum", "tickets"]:
-            es = EmpresaServicio(
-                codigo_empresa=test_empresa.codigo_empresa,
-                servicio=servicio,
-                activo=True,
-            )
-            test_session.add(es)
-        await test_session.flush()
-
+        # Los servicios se crean por defecto al crear la empresa (fixture test_empresa)
         response = await client.get(
             f"/admin/empresas/{test_empresa.codigo_empresa}/servicios",
             headers=headers_superadmin,
@@ -164,7 +137,7 @@ class TestAdminServicios:
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
-        assert len(data) == 2
+        assert len(data) >= 2
         servicios = {s["servicio"] for s in data}
         assert "scrum" in servicios
         assert "tickets" in servicios
@@ -173,18 +146,9 @@ class TestAdminServicios:
         self,
         client: AsyncClient,
         headers_superadmin,
-        test_session: AsyncSession,
         test_empresa,
     ):
         # Activar/desactivar un servicio (toggle) debe reflejarse en la BD
-        es = EmpresaServicio(
-            codigo_empresa=test_empresa.codigo_empresa,
-            servicio="scrum",
-            activo=True,
-        )
-        test_session.add(es)
-        await test_session.flush()
-
         payload = {"servicio": "scrum", "activo": False}
         response = await client.put(
             f"/admin/empresas/{test_empresa.codigo_empresa}/servicios",

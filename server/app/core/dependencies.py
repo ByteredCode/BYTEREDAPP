@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.security import decodificar_token
 from app.models.usuario import Usuario
-from app.models.empresa import EmpresaServicio
+from app.models.empresa_servicio import EmpresaServicio
 
 # HTTPBearer extrae el token del header "Authorization: Bearer <token>"
 # auto_error=False: no lanza error 403 automaticamente si falta el token

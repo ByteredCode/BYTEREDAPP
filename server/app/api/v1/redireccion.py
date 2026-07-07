@@ -8,7 +8,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.models.empresa import Empresa, EmpresaServicio
+from app.models.empresa import Empresa
+from app.models.empresa_servicio import EmpresaServicio
 
 router = APIRouter(tags=["Redireccion"])
 

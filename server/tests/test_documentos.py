@@ -192,3 +192,90 @@ class TestDocumentos:
 
         response = await client.delete(f"/documentos/{doc_id}", headers=headers_usuario)
         assert response.status_code == 204
+
+    async def test_get_documento_sin_permiso(self, client: AsyncClient, headers_usuario, test_session, test_empresa):
+        # Un usuario sin permiso no puede acceder a un documento de otro usuario
+        from app.core.security import hash_contrasena, crear_access_token
+        from app.models.usuario import Usuario
+
+        otro = Usuario(
+            correo="sinpermiso@test.com",
+            contrasena=hash_contrasena("Pass1234"),
+            nombre="SinPermiso",
+            rol="usuario",
+            codigo_empresa=test_empresa.codigo_empresa,
+        )
+        test_session.add(otro)
+        await test_session.flush()
+
+        token_otro = crear_access_token(
+            {"sub": str(otro.codigo_usuario), "empresa": otro.codigo_empresa}
+        )
+        headers_otro = {"Authorization": f"Bearer {token_otro}"}
+
+        files = {"archivo": ("privado.pdf", BytesIO(b"datos"), "application/pdf")}
+        post_resp = await client.post("/documentos", files=files, headers=headers_usuario)
+        doc_id = post_resp.json()["id_documento"]
+
+        response = await client.get(f"/documentos/{doc_id}", headers=headers_otro)
+        assert response.status_code == 403
+
+    async def test_get_documento_con_permiso(self, client: AsyncClient, headers_usuario, test_session, test_empresa):
+        # Un usuario CON permiso puede acceder al documento de otro usuario
+        from app.core.security import hash_contrasena, crear_access_token
+        from app.models.usuario import Usuario
+
+        otro = Usuario(
+            correo="conpermiso@test.com",
+            contrasena=hash_contrasena("Pass1234"),
+            nombre="ConPermiso",
+            rol="usuario",
+            codigo_empresa=test_empresa.codigo_empresa,
+        )
+        test_session.add(otro)
+        await test_session.flush()
+
+        token_otro = crear_access_token(
+            {"sub": str(otro.codigo_usuario), "empresa": otro.codigo_empresa}
+        )
+        headers_otro = {"Authorization": f"Bearer {token_otro}"}
+
+        files = {"archivo": ("compartido.pdf", BytesIO(b"datos"), "application/pdf")}
+        post_resp = await client.post("/documentos", files=files, headers=headers_usuario)
+        doc_id = post_resp.json()["id_documento"]
+
+        await client.post(
+            f"/documentos/{doc_id}/permisos",
+            json={"codigo_usuario": otro.codigo_usuario},
+            headers=headers_usuario,
+        )
+
+        response = await client.get(f"/documentos/{doc_id}", headers=headers_otro)
+        assert response.status_code == 200
+
+    async def test_admin_empresa_puede_acceder(self, client: AsyncClient, headers_admin, test_session, test_empresa):
+        # admin_empresa puede acceder a documentos de su empresa sin permiso explícito
+        from app.core.security import hash_contrasena, crear_access_token
+        from app.models.usuario import Usuario
+
+        otro = Usuario(
+            correo="docowner@test.com",
+            contrasena=hash_contrasena("Pass1234"),
+            nombre="DocOwner",
+            rol="usuario",
+            codigo_empresa=test_empresa.codigo_empresa,
+        )
+        test_session.add(otro)
+        await test_session.flush()
+
+        token_otro = crear_access_token(
+            {"sub": str(otro.codigo_usuario), "empresa": otro.codigo_empresa}
+        )
+        headers_otro = {"Authorization": f"Bearer {token_otro}"}
+
+        files = {"archivo": ("adminvea.pdf", BytesIO(b"datos"), "application/pdf")}
+        post_resp = await client.post("/documentos", files=files, headers=headers_otro)
+        doc_id = post_resp.json()["id_documento"]
+
+        response = await client.get(f"/documentos/{doc_id}", headers=headers_admin)
+        assert response.status_code == 200

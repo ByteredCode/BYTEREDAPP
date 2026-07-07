@@ -73,7 +73,7 @@ async def get_documento(
     es_admin = usuario.rol in ("admin_total", "admin_empresa")
     if not es_admin and doc.usuario_subio != usuario.codigo_usuario:
         from sqlalchemy import select as sa_select
-        from app.models.documento import DocumentoPermiso
+        from app.models.documento_permiso import DocumentoPermiso
         permiso = await db.execute(
             sa_select(DocumentoPermiso).where(
                 DocumentoPermiso.id_documento == id_documento,
@@ -109,7 +109,7 @@ async def descargar_documento(
     es_admin = usuario.rol in ("admin_total", "admin_empresa")
     if not es_admin and doc.usuario_subio != usuario.codigo_usuario:
         from sqlalchemy import select as sa_select
-        from app.models.documento import DocumentoPermiso
+        from app.models.documento_permiso import DocumentoPermiso
         permiso = await db.execute(
             sa_select(DocumentoPermiso).where(
                 DocumentoPermiso.id_documento == id_documento,
