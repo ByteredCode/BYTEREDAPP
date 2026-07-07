@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 # ── Schemas del módulo de tickets ─────────────────────────────────────
 # Separamos creación, actualización de estado y respuesta para evitar
@@ -14,7 +14,7 @@ class TicketCreate(BaseModel):
     nombre_contacto: Optional[str] = None
     correo_contacto: str
     asunto: Optional[str] = None
-    nivel_importancia: str = "Media"
+    nivel_importancia: str = Field(default="Media", pattern=r"^(Baja|Media|Alta|Critica)$")
     mensaje: str
     codigo_empresa: int
 
@@ -24,7 +24,7 @@ class TicketUpdateEstado(BaseModel):
     # el estado y añadir una respuesta. El resto de campos (asunto,
     # mensaje, etc.) son inmutables una vez creados por razones de
     # auditoría (trazabilidad del ticket).
-    estado: str
+    estado: str = Field(pattern=r"^(Pendiente|Leido|Respondido|Cerrado)$")
     respuesta: Optional[str] = None
 
 

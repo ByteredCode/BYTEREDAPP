@@ -4,7 +4,7 @@ logger = logging.getLogger(__name__)
 
 # Blocklist hibrida: Redis como almacenamiento principal persistente (compartido entre workers)
 # Fallback a set en memoria si Redis no esta disponible (ej. desarrollo local)
-# Usamos un set (hashset) para busquedas O(1) en ambos casos
+# Usamos claves individuales por JTI con TTL propio para evitar que se borren en lote
 _token_blocklist: set[str] = set()
 _redis = None
 
@@ -44,23 +44,22 @@ async def get_conexion():
 
 
 # Consulta async: no bloquea el hilo mientras Redis responde
-# sismember es O(1) en Redis (hash set), igual que el operador "in" en un set de Python
+# Claves individuales por JTI con verificacion O(1)
 async def esta_en_blocklist(jti: str) -> bool:
     r = await get_conexion()
     if r:
-        return await r.sismember("token_blocklist", jti)
+        return await r.exists(f"bl:{jti}")
     return jti in _token_blocklist
 
 
-# TTL (time-to-live) en Redis: los tokens se limpian solos tras expirar
-# 86400 segundos = 24h, suficiente para que el refresh token original expire
-async def agregar_a_blocklist(jti: str, ttl: int = 86400) -> None:
+# TTL individual por JTI: access token = 30min, refresh token = 7 dias
+# Se usa el TTL del token mas largo (refresh = 7d = 604800s) como maximo
+# Cada JTI se limpia automaticamente cuando su token expira
+async def agregar_a_blocklist(jti: str, ttl: int = 604800) -> None:
     r = await get_conexion()
     if r:
-        # sadd inserta en un set de Redis (sin duplicados)
-        await r.sadd("token_blocklist", jti)
-        # expire asegura que la clave completa se borre automaticamente
-        await r.expire("token_blocklist", ttl)
+        # Clave individual por JTI con TTL propio — no se borra en lote
+        await r.set(f"bl:{jti}", "1", ex=ttl)
     else:
         # Fallback en memoria: sin TTL se limpia al reiniciar la app
         _token_blocklist.add(jti)

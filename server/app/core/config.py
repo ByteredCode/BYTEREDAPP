@@ -1,9 +1,12 @@
 import logging
+import os
 from typing import Optional
 
 from pydantic_settings import BaseSettings
 
 logger = logging.getLogger(__name__)
+
+ES_PRODUCCION = os.getenv("ENVIRONMENT") == "production"
 
 
 # Pydantic BaseSettings lee automaticamente variables de entorno y .env
@@ -53,6 +56,11 @@ class Config(BaseSettings):
     # Sirve para validaciones que dependen del valor final de los campos
     def model_post_init(self, __context) -> None:
         if self.JWT_SECRET in {"changeme", "super-secret-key-change-in-production"}:
+            if ES_PRODUCCION:
+                raise ValueError(
+                    "JWT_SECRET no puede usar el valor por defecto en produccion. "
+                    "Genera uno seguro con: python scripts/generate_secret.py"
+                )
             logger.warning(
                 "JWT_SECRET usa un valor por defecto. "
                 "Genera uno seguro con: python scripts/generate_secret.py"

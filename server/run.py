@@ -1,4 +1,5 @@
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -21,14 +22,19 @@ from fastapi import APIRouter
 
 logger = logging.getLogger(__name__)
 
+ENTORNO = os.getenv("ENVIRONMENT", "development")
+ES_PRODUCCION = ENTORNO == "production"
 
 SECRETOS_POR_DEFECTO = {"changeme", "root", "super-secret-key-change-in-production"}
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     if config.JWT_SECRET in SECRETOS_POR_DEFECTO or config.MYSQL_PASSWORD in SECRETOS_POR_DEFECTO:
+        if ES_PRODUCCION:
+            logger.critical("SECRETOS POR DEFECTO EN PRODUCCION — Abortando arranque")
+            raise RuntimeError("SECRETOS POR DEFECTO DETECTADOS EN PRODUCCION")
         logger.error("SECRETOS POR DEFECTO DETECTADOS — Cambia JWT_SECRET y MYSQL_PASSWORD en produccion")
-    logger.info(f"Iniciando BYTEREDAPP API — entorno: {'produccion' if config.JWT_SECRET != 'changeme' else 'desarrollo'}")
+    logger.info(f"Iniciando BYTEREDAPP API — entorno: {ENTORNO}")
     logger.info(f"Documentacion {'habilitada' if app.docs_url else 'deshabilitada'} (CORS: {config.CORS_ORIGINS})")
     yield
     await cerrar_blocklist()
@@ -40,8 +46,8 @@ app = FastAPI(
     title="BYTEREDAPP API",
     version="0.1.0",
     lifespan=lifespan,
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url=None if ES_PRODUCCION else "/docs",
+    redoc_url=None if ES_PRODUCCION else "/redoc",
 )
 
 app.state.limiter = limiter
@@ -52,8 +58,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 
@@ -61,10 +67,11 @@ async def seguridad_headers_middleware(request, call_next):
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
-    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://byteredapp.onrender.com"
+    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://byteredapp.onrender.com"
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
     return response
 
 
