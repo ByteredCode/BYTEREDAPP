@@ -1,11 +1,14 @@
 # Tests de integración para el módulo de redirección (/r/<codigo_empresa>)
 from app.models.empresa import Empresa
+from app.models.empresa_servicio import EmpresaServicio
 
 
 async def test_redireccion_exito(client, test_session):
-    # Una empresa con web configurada debe redirigir (307) a esa URL
+    # Una empresa con web configurada y servicio activo debe redirigir (307) a esa URL
     empresa = Empresa(nombre="Test", web="https://example.com")
     test_session.add(empresa)
+    await test_session.flush()
+    test_session.add(EmpresaServicio(codigo_empresa=empresa.codigo_empresa, servicio="redireccion", activo=True))
     await test_session.flush()
 
     resp = await client.get(f"/r/{empresa.codigo_empresa}")
@@ -18,6 +21,8 @@ async def test_redireccion_empresa_sin_web(client, test_session):
     # Una empresa sin web configurada debe devolver 404 (no hay URL a la que redirigir)
     empresa = Empresa(nombre="Test Sin Web")
     test_session.add(empresa)
+    await test_session.flush()
+    test_session.add(EmpresaServicio(codigo_empresa=empresa.codigo_empresa, servicio="redireccion", activo=True))
     await test_session.flush()
 
     resp = await client.get(f"/r/{empresa.codigo_empresa}")
@@ -37,7 +42,22 @@ async def test_redireccion_url_no_https(client, test_session):
     empresa = Empresa(nombre="Test Malicious", web="ftp://malicious.com")
     test_session.add(empresa)
     await test_session.flush()
+    test_session.add(EmpresaServicio(codigo_empresa=empresa.codigo_empresa, servicio="redireccion", activo=True))
+    await test_session.flush()
 
     resp = await client.get(f"/r/{empresa.codigo_empresa}")
 
     assert resp.status_code == 400
+
+
+async def test_redireccion_servicio_desactivado(client, test_session):
+    # Si el servicio redireccion está desactivado, debe devolver 404
+    empresa = Empresa(nombre="Test NoRedirect", web="https://example.com")
+    test_session.add(empresa)
+    await test_session.flush()
+    test_session.add(EmpresaServicio(codigo_empresa=empresa.codigo_empresa, servicio="redireccion", activo=False))
+    await test_session.flush()
+
+    resp = await client.get(f"/r/{empresa.codigo_empresa}")
+
+    assert resp.status_code == 404

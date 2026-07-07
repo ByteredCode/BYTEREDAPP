@@ -4,6 +4,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.empresa import Empresa
+from app.models.empresa_servicio import EmpresaServicio
 from app.models.tarea import Tarea
 
 
@@ -190,3 +191,43 @@ class TestSprints:
             headers=headers_usuario,
         )
         assert response.status_code == 204
+
+
+class TestFeatureFlags:
+
+    async def test_servicio_desactivado_bloquea_acceso(
+        self, client: AsyncClient, headers_usuario, test_session, test_empresa
+    ):
+        # Desactivar el servicio scrum y verificar que se bloquea el acceso
+        from sqlalchemy import update
+        await test_session.execute(
+            update(EmpresaServicio)
+            .where(
+                EmpresaServicio.codigo_empresa == test_empresa.codigo_empresa,
+                EmpresaServicio.servicio == "scrum",
+            )
+            .values(activo=False)
+        )
+        await test_session.flush()
+
+        response = await client.get("/scrum/tablero", headers=headers_usuario)
+        assert response.status_code == 403
+        assert "no esta activo" in response.json()["detail"].lower()
+
+    async def test_admin_total_no_bloqueado_por_servicio(
+        self, client: AsyncClient, headers_superadmin, test_session, test_empresa
+    ):
+        # admin_total siempre puede acceder, incluso si el servicio esta desactivado
+        from sqlalchemy import update
+        await test_session.execute(
+            update(EmpresaServicio)
+            .where(
+                EmpresaServicio.codigo_empresa == test_empresa.codigo_empresa,
+                EmpresaServicio.servicio == "scrum",
+            )
+            .values(activo=False)
+        )
+        await test_session.flush()
+
+        response = await client.get("/scrum/tablero", headers=headers_superadmin)
+        assert response.status_code == 200
