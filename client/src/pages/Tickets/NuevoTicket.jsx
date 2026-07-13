@@ -8,7 +8,6 @@ export default function NuevoTicket() {
     nombre_contacto: "",
     correo_contacto: "",
     asunto: "",
-    nivel_importancia: "Media",
     mensaje: "",
     codigo_empresa: "",
   })
@@ -54,7 +53,7 @@ export default function NuevoTicket() {
       <div className="ticket-exito">
         <h2>Ticket enviado</h2>
         <p>Hemos recibido tu mensaje. Te responderemos pronto.</p>
-        <button className="btn-primary" onClick={() => { setEnviado(false); setForm({ nombre_contacto: "", correo_contacto: "", asunto: "", nivel_importancia: "Media", mensaje: "", codigo_empresa: "" }) }}>
+        <button className="btn-primary" onClick={() => { setEnviado(false); setForm({ nombre_contacto: "", correo_contacto: "", asunto: "", mensaje: "", codigo_empresa: "" }) }}>
           Enviar otro
         </button>
       </div>
@@ -77,15 +76,6 @@ export default function NuevoTicket() {
         <div className="campo">
           <label>Asunto</label>
           <input value={form.asunto} onChange={(e) => setForm({ ...form, asunto: e.target.value })} />
-        </div>
-        <div className="campo">
-          <label>Importancia</label>
-          <select value={form.nivel_importancia} onChange={(e) => setForm({ ...form, nivel_importancia: e.target.value })}>
-            <option value="Baja">Baja</option>
-            <option value="Media">Media</option>
-            <option value="Alta">Alta</option>
-            <option value="Critica">Crítica</option>
-          </select>
         </div>
         {!esAnonimo && (
           <div className="campo">

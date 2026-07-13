@@ -6,6 +6,11 @@ vi.mock('../../../api/axios', () => ({
   default: { get: vi.fn(), put: vi.fn() }
 }))
 
+vi.mock('../../../context/AuthContext', () => ({
+  AuthProvider: ({ children }) => children,
+  useAuth: () => ({ usuario: { nombre: 'Admin', rol: 'admin_total' } })
+}))
+
 describe('TicketsAdmin', () => {
   beforeEach(() => { vi.clearAllMocks() })
 

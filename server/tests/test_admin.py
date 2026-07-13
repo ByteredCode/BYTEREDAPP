@@ -159,3 +159,129 @@ class TestAdminServicios:
         data = response.json()
         assert data["servicio"] == "scrum"
         assert data["activo"] is False
+
+
+class TestEliminarEmpresa:
+
+    async def test_eliminar_empresa_exito(
+        self, client: AsyncClient, headers_superadmin, test_session, test_empresa
+    ):
+        # Crear una empresa temporal sin usuarios para evitar conflictos de cascade
+        from app.models.empresa import Empresa
+        from app.models.empresa_servicio import EmpresaServicio
+        empresa_tmp = Empresa(nombre="Para Eliminar")
+        test_session.add(empresa_tmp)
+        await test_session.flush()
+        # Añadir servicio por defecto para que no haya problemas de FK
+        test_session.add(EmpresaServicio(codigo_empresa=empresa_tmp.codigo_empresa, servicio="scrum", activo=True))
+        await test_session.flush()
+
+        response = await client.delete(
+            f"/admin/empresas/{empresa_tmp.codigo_empresa}",
+            headers=headers_superadmin,
+        )
+        assert response.status_code == 204
+
+    async def test_eliminar_empresa_404(
+        self, client: AsyncClient, headers_superadmin
+    ):
+        # Eliminar una empresa inexistente debe devolver 404
+        response = await client.delete(
+            "/admin/empresas/99999",
+            headers=headers_superadmin,
+        )
+        assert response.status_code == 404
+
+    async def test_eliminar_empresa_no_admin(
+        self, client: AsyncClient, headers_admin, test_empresa
+    ):
+        # Un admin_empresa NO puede eliminar empresas (solo admin_total)
+        response = await client.delete(
+            f"/admin/empresas/{test_empresa.codigo_empresa}",
+            headers=headers_admin,
+        )
+        assert response.status_code == 403
+
+
+class TestEliminarUsuario:
+
+    async def test_eliminar_usuario_exito(
+        self, client: AsyncClient, headers_superadmin, test_session, test_empresa
+    ):
+        # Crear un usuario temporal para eliminar
+        from app.core.security import hash_contrasena
+        from app.models.usuario import Usuario
+        usuario_tmp = Usuario(
+            correo="tmp_eliminar@test.com",
+            contrasena=hash_contrasena("Pass1234"),
+            nombre="Tmp Eliminar",
+            rol="usuario",
+            codigo_empresa=test_empresa.codigo_empresa,
+        )
+        test_session.add(usuario_tmp)
+        await test_session.flush()
+
+        response = await client.delete(
+            f"/admin/usuarios/{usuario_tmp.codigo_usuario}",
+            headers=headers_superadmin,
+        )
+        assert response.status_code == 204
+
+    async def test_eliminar_usuario_403(
+        self, client: AsyncClient, headers_admin, test_usuario
+    ):
+        # Un admin_empresa NO puede eliminar usuarios (solo admin_total)
+        response = await client.delete(
+            f"/admin/usuarios/{test_usuario.codigo_usuario}",
+            headers=headers_admin,
+        )
+        assert response.status_code == 403
+
+
+class TestActualizarUsuario:
+
+    async def test_actualizar_usuario_exito(
+        self, client: AsyncClient, headers_superadmin, test_usuario
+    ):
+        # Actualizar el nombre de un usuario existente
+        payload = {"nombre": "Nombre Actualizado"}
+        response = await client.put(
+            f"/admin/usuarios/{test_usuario.codigo_usuario}",
+            json=payload,
+            headers=headers_superadmin,
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["nombre"] == "Nombre Actualizado"
+
+
+class TestStats:
+
+    async def test_obtener_stats(
+        self, client: AsyncClient, headers_superadmin, test_empresa, test_usuario
+    ):
+        # El endpoint de stats debe devolver estadísticas globales
+        response = await client.get("/admin/stats", headers=headers_superadmin)
+        assert response.status_code == 200
+        data = response.json()
+        assert "total_empresas" in data
+        assert "total_usuarios" in data
+        assert "tickets_por_estado" in data
+        assert "tareas_por_columna" in data
+
+
+class TestListarUsuariosPorEmpresa:
+
+    async def test_listar_usuarios_por_empresa(
+        self, client: AsyncClient, headers_superadmin, test_empresa, test_usuario, test_admin
+    ):
+        # El superadmin puede listar usuarios filtrando por empresa
+        response = await client.get(
+            f"/admin/empresas/{test_empresa.codigo_empresa}/usuarios",
+            headers=headers_superadmin,
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "items" in data and "total" in data
+        assert isinstance(data["items"], list)
+        assert data["total"] >= 2

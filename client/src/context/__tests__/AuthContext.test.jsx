@@ -40,8 +40,7 @@ describe('AuthContext', () => {
   it('login stores tokens and sets user', async () => {
     // Al hacer login, los tokens se guardan en localStorage y el usuario se actualiza en el estado
     const api = (await import('../../api/axios')).default
-    api.post.mockResolvedValueOnce({ data: { access_token: 'acc-test', refresh_token: 'ref-test' } })
-    api.get.mockResolvedValueOnce({ data: { nombre: 'Juan', rol: 'user' } })
+    api.post.mockResolvedValueOnce({ data: { access_token: 'acc-test', refresh_token: 'ref-test', usuario: { nombre: 'Juan', rol: 'user' } } })
     render(<AuthProvider><TestConsumer /></AuthProvider>)
     await waitFor(() => expect(screen.getByTestId('cargando').textContent).toBe('false'))
     await act(async () => {

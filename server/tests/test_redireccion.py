@@ -61,3 +61,45 @@ async def test_redireccion_servicio_desactivado(client, test_session):
     resp = await client.get(f"/r/{empresa.codigo_empresa}")
 
     assert resp.status_code == 404
+
+
+async def test_redireccion_url_ip_privada_127(client, test_session):
+    # URL con IP de loopback (127.0.0.1) debe ser bloqueada por SSRF
+    empresa = Empresa(nombre="Test Loopback", web="http://127.0.0.1/admin")
+    test_session.add(empresa)
+    await test_session.flush()
+    test_session.add(EmpresaServicio(codigo_empresa=empresa.codigo_empresa, servicio="redireccion", activo=True))
+    await test_session.flush()
+
+    resp = await client.get(f"/r/{empresa.codigo_empresa}")
+
+    assert resp.status_code == 400
+    assert "no permitida" in resp.json()["detail"].lower()
+
+
+async def test_redireccion_url_ip_privada_192(client, test_session):
+    # URL con IP privada (192.168.1.1) debe ser bloqueada por SSRF
+    empresa = Empresa(nombre="Test Privada", web="http://192.168.1.1/secreto")
+    test_session.add(empresa)
+    await test_session.flush()
+    test_session.add(EmpresaServicio(codigo_empresa=empresa.codigo_empresa, servicio="redireccion", activo=True))
+    await test_session.flush()
+
+    resp = await client.get(f"/r/{empresa.codigo_empresa}")
+
+    assert resp.status_code == 400
+    assert "no permitida" in resp.json()["detail"].lower()
+
+
+async def test_redireccion_url_javascript_scheme(client, test_session):
+    # URL con scheme javascript: debe ser rechazada (open redirect XSS)
+    empresa = Empresa(nombre="Test XSS", web="javascript:alert(1)")
+    test_session.add(empresa)
+    await test_session.flush()
+    test_session.add(EmpresaServicio(codigo_empresa=empresa.codigo_empresa, servicio="redireccion", activo=True))
+    await test_session.flush()
+
+    resp = await client.get(f"/r/{empresa.codigo_empresa}")
+
+    assert resp.status_code == 400
+    assert "no valida" in resp.json()["detail"].lower()

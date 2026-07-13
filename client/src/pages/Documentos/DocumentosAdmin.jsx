@@ -116,6 +116,13 @@ export default function DocumentosAdmin() {
   async function descargar(id, nombre) {
     try {
       const res = await api.get(`/documentos/${id}/descargar`, { responseType: "blob" })
+      const contentType = res.headers["content-type"] || ""
+      if (contentType.includes("application/json")) {
+        const text = await res.data.text()
+        const errData = JSON.parse(text)
+        showToast(errData.detail || "Error al descargar")
+        return
+      }
       const url = URL.createObjectURL(res.data)
       const a = document.createElement("a")
       a.href = url
@@ -123,9 +130,17 @@ export default function DocumentosAdmin() {
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      setTimeout(() => URL.revokeObjectURL(url), 100)
     } catch (err) {
-      showToast("Error al descargar")
+      if (err.response?.data instanceof Blob) {
+        try {
+          const text = await err.response.data.text()
+          const errData = JSON.parse(text)
+          showToast(errData.detail || "Error al descargar")
+          return
+        } catch {}
+      }
+      showToast(err.response?.data?.detail || "Error al descargar")
     }
   }
 

@@ -21,13 +21,15 @@ describe('Layout', () => {
   }
 
   it('renders nav links for authenticated user', () => {
-    // Un usuario autenticado debe ver el logo, los enlaces de navegación y su nombre
+    // Un usuario autenticado debe ver el logo y enlaces públicos, pero NO tickets/documentos/admin
     renderLayout({ nombre: 'Juan', rol: 'user' })
     expect(screen.getByText('BYTERED')).toBeInTheDocument()
     expect(screen.getByText('Scrum')).toBeInTheDocument()
-    expect(screen.getByText('Tickets')).toBeInTheDocument()
-    expect(screen.getByText('Documentos')).toBeInTheDocument()
+    expect(screen.getByText('Nuevo Ticket')).toBeInTheDocument()
     expect(screen.getByText('Juan')).toBeInTheDocument()
+    expect(screen.queryByText('Tickets')).not.toBeInTheDocument()
+    expect(screen.queryByText('Documentos')).not.toBeInTheDocument()
+    expect(screen.queryByText('Admin')).not.toBeInTheDocument()
   })
 
   it('shows login link when no user', () => {
@@ -45,8 +47,10 @@ describe('Layout', () => {
   })
 
   it('renders admin link for admin user', () => {
-    // Un usuario admin_total debe ver el enlace de Administración
+    // Un usuario admin_total debe ver los enlaces de administración (Tickets, Documentos, Admin)
     renderLayout({ nombre: 'Admin', rol: 'admin_total' })
+    expect(screen.getByRole('link', { name: 'Tickets' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Documentos' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Admin' })).toBeInTheDocument()
   })
 
