@@ -20,7 +20,6 @@ import ScrumLayout from "./pages/Scrum/ScrumLayout"
 import Board from "./pages/Scrum/Board"
 import Sprints from "./pages/Scrum/Sprints"
 import NuevoTicket from "./pages/Tickets/NuevoTicket"
-import Register from "./pages/Register"
 import TicketsAdmin from "./pages/admin/TicketsAdmin"
 import DocumentosAdmin from "./pages/Documentos/DocumentosAdmin"
 import MiEmpresa from "./pages/MiEmpresa"
@@ -41,7 +40,7 @@ export default function App() {
           {/* Rutas publicas (sin layout ni autenticacion) */}
           <Route path="/" element={<RootRedirect />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+
 
           {/* Layout como ruta "padre" sin path: solo aporta el navbar y <Outlet /> para las hijas */}
           <Route element={<Layout />}>
