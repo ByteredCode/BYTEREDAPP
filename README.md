@@ -9,9 +9,23 @@ Sistema web multi-tenant para la gestión de empresas. Cada empresa tiene acceso
 | 1 | **Tablero Scrum** | La empresa asigna tareas a sus propios usuarios con sprints y kanban |
 | 2 | **Tickets (contacto)** | Formulario que los usuarios rellenan y genera un correo para nosotros + histórico visible en el admin |
 | 3 | **Documentación DPD/ISO** | Repositorio de documentos con control de permisos (solo usuarios autorizados acceden) |
-| 4 | **Fichaje (login register)** | Cada inicio de sesión queda registrado con timestamp para control horario |
-| 5 | **Redirección a web** | Enlace directo a la web de la empresa si gestionamos su mantenimiento |
-| 6 | **Panel admin total** | Estadísticas de uso, CRUD de usuarios/empresas, configuración global, histórico de tickets |
+| 4 | **Redirección a web** | Enlace directo a la web de la empresa si gestionamos su mantenimiento |
+| 5 | **Panel admin total** | Estadísticas de uso, CRUD de usuarios/empresas, configuración global, histórico de tickets |
+
+## Credenciales de prueba
+
+El sistema tiene 3 roles con diferentes niveles de acceso. Puedes probarlos en:
+
+- **URL:** https://byteredapp.com
+- **URL alternativa:** https://byteredapp.onrender.com
+
+| Rol | Email | Contraseña | Permisos |
+|---|---|---|---|
+| **Admin total** | `antonio@bytered.es` | `admin1234A` | Gestión completa: usuarios, empresas, servicios, documentos, tickets |
+| **Admin empresa** | `adminempresa@bytered.es` | `Admin1234A!` | Gestión de su propia empresa: usuarios, scrum, documentos |
+| **Usuario** | `usuario@bytered.es` | `Usuario1234A!` | Uso básico: scrum, tickets, documentos con permiso |
+
+> Todos los usuarios están asignados a la empresa **ByteRed 2018 SL** (ID 3).
 
 ## Stack Tecnológico
 
@@ -23,8 +37,8 @@ Sistema web multi-tenant para la gestión de empresas. Cada empresa tiene acceso
 | **Base de datos** | MySQL | Disponible en Hostinger, costo cero |
 | **ORM** | SQLAlchemy 2.0 + Alembic | Estándar Python, migrations |
 | **Autenticación** | JWT (access + refresh) | Stateless, multi-tenant nativo |
-| **Despliegue Frontend** | Hostinger (estáticos) | Contratado actualmente |
-| **Despliegue Backend** | Por definir (Render / Railway / VPS) | |
+| **Despliegue Frontend** | Hostinger (estáticos) | byteredapp.com |
+| **Despliegue Backend** | Render (free tier) | byteredapp.onrender.com |
 
 ## Arquitectura
 
@@ -34,7 +48,7 @@ Sistema web multi-tenant para la gestión de empresas. Cada empresa tiene acceso
 - **Backend:** FastAPI organizado en capas (routes → services → models)
 - **Multi-tenant:** Aislamiento por fila (cada tabla tiene `company_id`)
 - **Servicios por empresa:** Feature flags — una tabla `company_services` que determina qué módulos tiene activos cada empresa
-- **Separación por dominios:** auth, companies, tickets, scrum, docs, fichaje, admin
+- **Separación por dominios:** auth, companies, tickets, scrum, docs, admin
 
 ### Estructura de carpetas
 
@@ -70,11 +84,11 @@ Sistema web multi-tenant para la gestión de empresas. Cada empresa tiene acceso
 
 | Carpeta | Contenido |
 |---|---|
-| `app/api/v1/` | Endpoints: auth, admin, empresa, scrum, tickets, documentos, fichajes, redireccion |
+| `app/api/v1/` | Endpoints: auth, admin, empresa, scrum, tickets, documentos, redireccion |
 | `app/core/` | Config global: conexión BD (SQLAlchemy async), JWT, seguridad, middleware tenant, Redis, blocklist |
 | `app/models/` | Modelos SQLAlchemy: Empresa, Usuario, Tarea, Sprint, Ticket, Documento, Permiso, Fichaje |
 | `app/schemas/` | Esquemas Pydantic (validación entrada/salida) |
-| `app/services/` | Lógica de negocio: auth, admin, scrum, ticket, fichaje, documento, email |
+| `app/services/` | Lógica de negocio: auth, admin, scrum, ticket, documento, email |
 | `run.py` | Punto de entrada de la aplicación FastAPI |
 | `alembic/` | Migraciones de la base de datos |
 | `tests/` | Tests unitarios y de integración (12 archivos) |

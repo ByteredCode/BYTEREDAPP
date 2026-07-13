@@ -63,10 +63,7 @@ export default function Login() {
           </div>
           <button type="submit" className="btn btn-primary">Entrar</button>
         </form>
-        <div className="auth-link">
-          {/* Link de React Router evita recarga completa y preserva el estado de la sesión */}
-          ¿No tienes cuenta? <Link to="/register">Registrarse</Link>
-        </div>
+
       </div>
     </div>
   )
