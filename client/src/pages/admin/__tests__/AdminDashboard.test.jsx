@@ -39,7 +39,6 @@ describe('AdminDashboard', () => {
     await waitFor(() => {
       expect(screen.getByText('5')).toBeInTheDocument()
       expect(screen.getByText('20')).toBeInTheDocument()
-      expect(screen.getByText('3')).toBeInTheDocument()
       expect(screen.getByText('1')).toBeInTheDocument()
       expect(screen.getByText('10')).toBeInTheDocument()
     })

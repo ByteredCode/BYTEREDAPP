@@ -98,3 +98,39 @@ class TestTickets:
         }
         response = await client.post("/tickets", json=payload)
         assert response.status_code == 422
+
+
+class TestEliminarTicket:
+
+    async def test_eliminar_ticket_exito(
+        self, client: AsyncClient, headers_superadmin, test_ticket
+    ):
+        # Un admin_total puede eliminar tickets
+        response = await client.delete(
+            f"/tickets/{test_ticket.id_reporte}",
+            headers=headers_superadmin,
+        )
+        assert response.status_code == 204
+
+    async def test_eliminar_ticket_no_admin(
+        self, client: AsyncClient, headers_usuario, test_ticket
+    ):
+        # Un usuario normal NO puede eliminar tickets (solo admin_total)
+        response = await client.delete(
+            f"/tickets/{test_ticket.id_reporte}",
+            headers=headers_usuario,
+        )
+        assert response.status_code == 403
+
+
+class TestListarEmpresasPublico:
+
+    async def test_listar_empresas_publico(self, client: AsyncClient, test_empresa):
+        # El endpoint público de empresas debe devolver la lista sin autenticación
+        response = await client.get("/tickets/empresas")
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list)
+        assert len(data) >= 1
+        assert "codigo_empresa" in data[0]
+        assert "nombre" in data[0]

@@ -85,3 +85,36 @@ class TestSecurityHeaders:
         assert resp.headers.get("x-content-type-options") == "nosniff"
         assert resp.headers.get("x-frame-options") == "DENY"
         assert "content-security-policy" in resp.headers
+
+
+class TestTokenRefreshEnEndpointAccess:
+
+    async def test_token_refresh_en_endpoint_access(self, client: AsyncClient):
+        # Un token de tipo refresh NO debe ser aceptado en endpoints que requieren access token
+        payload = {
+            "sub": "1",
+            "tipo": "refresh",
+            "jti": uuid.uuid4().hex,
+            "exp": datetime.now(timezone.utc) + timedelta(hours=1),
+        }
+        refresh_token = jwt.encode(payload, config.JWT_SECRET, algorithm="HS256")
+        headers = {"Authorization": f"Bearer {refresh_token}"}
+        resp = await client.get("/scrum/tablero", headers=headers)
+        # Debe ser rechazado (401) porque el token es de tipo refresh, no access
+        assert resp.status_code == 401
+
+
+class TestCORSOrigenNoPermitido:
+
+    async def test_cors_origen_no_permitido(self, client: AsyncClient):
+        # Un origen no permitido NO debe tener CORS habilitado
+        resp = await client.options(
+            "/auth/login",
+            headers={
+                "Origin": "https://evil.com",
+                "Access-Control-Request-Method": "POST",
+            },
+        )
+        # El header access-control-allow-origin NO debe estar presente o no debe coincidir
+        allow_origin = resp.headers.get("access-control-allow-origin")
+        assert allow_origin != "https://evil.com"

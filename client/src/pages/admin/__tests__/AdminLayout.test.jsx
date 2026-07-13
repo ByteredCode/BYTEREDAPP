@@ -23,11 +23,12 @@ describe('AdminLayout', () => {
     expect(screen.getByText('Documentos')).toBeInTheDocument()
   })
 
-  it('hides Empresas link for admin_empresa', () => {
+  it('hides Empresas and Usuarios links for admin_empresa', () => {
     renderLayout({ rol: 'admin_empresa' })
     expect(screen.queryByText('Empresas')).not.toBeInTheDocument()
-    expect(screen.getByText('Usuarios')).toBeInTheDocument()
+    expect(screen.queryByText('Usuarios')).not.toBeInTheDocument()
     expect(screen.getByText('Tickets')).toBeInTheDocument()
+    expect(screen.getByText('Documentos')).toBeInTheDocument()
   })
 
   it('renders sidebar title', () => {

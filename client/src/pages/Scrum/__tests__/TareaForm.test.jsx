@@ -6,6 +6,10 @@ vi.mock('../../../api/axios', () => ({
   default: { get: vi.fn(), post: vi.fn(), put: vi.fn() }
 }))
 
+vi.mock('../../../hooks/useUsuarios', () => ({
+  default: () => ({ usuarios: [{ codigo_usuario: 1, nombre: 'Ana' }, { codigo_usuario: 2, nombre: 'Luis' }], loading: false })
+}))
+
 describe('TareaForm', () => {
   const onClose = vi.fn()
   const onSaved = vi.fn()

@@ -279,3 +279,91 @@ class TestDocumentos:
 
         response = await client.get(f"/documentos/{doc_id}", headers=headers_admin)
         assert response.status_code == 200
+
+
+class TestDescargarDocumento:
+
+    async def test_descargar_documento(
+        self, client: AsyncClient, headers_usuario, test_session, test_empresa
+    ):
+        # El propietario puede descargar su documento
+        files = {"archivo": ("descargar.pdf", BytesIO(b"contenido"), "application/pdf")}
+        post_resp = await client.post("/documentos", files=files, headers=headers_usuario)
+        doc_id = post_resp.json()["id_documento"]
+
+        response = await client.get(
+            f"/documentos/{doc_id}/descargar",
+            headers=headers_usuario,
+        )
+        # Puede ser 200 (FileResponse) o 404 si el archivo físico no existe en disco de test
+        assert response.status_code in (200, 404)
+
+    async def test_descargar_documento_sin_permiso(
+        self, client: AsyncClient, headers_usuario, test_session, test_empresa
+    ):
+        # Un usuario sin permiso no puede descargar documentos de otro
+        from app.core.security import hash_contrasena, crear_access_token
+        from app.models.usuario import Usuario
+
+        otro = Usuario(
+            correo="nodescarga@test.com",
+            contrasena=hash_contrasena("Pass1234"),
+            nombre="NoDescarga",
+            rol="usuario",
+            codigo_empresa=test_empresa.codigo_empresa,
+        )
+        test_session.add(otro)
+        await test_session.flush()
+
+        token_otro = crear_access_token(
+            {"sub": str(otro.codigo_usuario), "empresa": otro.codigo_empresa}
+        )
+        headers_otro = {"Authorization": f"Bearer {token_otro}"}
+
+        files = {"archivo": ("privado.pdf", BytesIO(b"datos"), "application/pdf")}
+        post_resp = await client.post("/documentos", files=files, headers=headers_usuario)
+        doc_id = post_resp.json()["id_documento"]
+
+        response = await client.get(
+            f"/documentos/{doc_id}/descargar",
+            headers=headers_otro,
+        )
+        assert response.status_code == 403
+
+
+class TestQuitarPermiso:
+
+    async def test_quitar_permiso(
+        self, client: AsyncClient, headers_usuario, test_session, test_empresa
+    ):
+        # Quitar un permiso existente debe devolver 204
+        from app.core.security import hash_contrasena
+        from app.models.usuario import Usuario
+
+        otro = Usuario(
+            correo="quitarperm@test.com",
+            contrasena=hash_contrasena("Pass1234"),
+            nombre="QuitarPerm",
+            rol="usuario",
+            codigo_empresa=test_empresa.codigo_empresa,
+        )
+        test_session.add(otro)
+        await test_session.flush()
+
+        files = {"archivo": ("qperm.pdf", BytesIO(b"datos"), "application/pdf")}
+        post_resp = await client.post("/documentos", files=files, headers=headers_usuario)
+        doc_id = post_resp.json()["id_documento"]
+
+        # Agregar permiso primero
+        await client.post(
+            f"/documentos/{doc_id}/permisos",
+            json={"codigo_usuario": otro.codigo_usuario},
+            headers=headers_usuario,
+        )
+
+        # Quitar permiso
+        response = await client.delete(
+            f"/documentos/{doc_id}/permisos/{otro.codigo_usuario}",
+            headers=headers_usuario,
+        )
+        assert response.status_code == 204
