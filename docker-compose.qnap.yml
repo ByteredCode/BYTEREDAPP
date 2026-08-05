@@ -1,0 +1,86 @@
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: byteredapp-tunnel
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    networks:
+      - byteredapp
+
+  redis:
+    image: redis:7-alpine
+    container_name: byteredapp-redis
+    volumes:
+      - redis_data:/data
+    expose:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - byteredapp
+
+  mysql:
+    image: mysql:8.0
+    container_name: byteredapp-mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    volumes:
+      - /share/CACHEDEV1_DATA/Docker/byteredapp/mysql-data:/var/lib/mysql
+    expose:
+      - "3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - byteredapp
+
+  server:
+    image: byteredapp-server
+    container_name: byteredapp-server
+    expose:
+      - "8000"
+    env_file:
+      - .env
+    environment:
+      - ENVIRONMENT=production
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - JWT_REFRESH_TOKEN_EXPIRE_DAYS=7
+      - CORS_ORIGINS=https://byteredapp.com,https://www.byteredapp.com,https://api.byteredapp.com
+      - RESEND_FROM=BYTERED <sat@bytered.es>
+      - TICKETS_EMAIL=sat@bytered.es
+      - UPLOADS_DIR=/app/uploads
+      - PORT=8000
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      redis:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - byteredapp
+
+volumes:
+  redis_data:
+  uploads_data:
+
+networks:
+  byteredapp:
+    driver: bridge
