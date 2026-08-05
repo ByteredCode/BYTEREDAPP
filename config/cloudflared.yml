@@ -1,0 +1,5 @@
+tunnel: byteredapp-qnap
+ingress:
+  - hostname: api.byteredapp.com
+    service: http://server:8000
+  - service: http_status:404
