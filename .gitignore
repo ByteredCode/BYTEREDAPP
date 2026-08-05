@@ -3,6 +3,7 @@ dist/
 build/
 .env
 .env.qnap
+docker-compose.qnap.yml
 *.pyc
 __pycache__/
 venv/
