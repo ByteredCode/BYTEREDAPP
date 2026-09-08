@@ -33,6 +33,8 @@ class Ticket(Base):
     fecha_reporte = Column(DateTime, server_default=func.current_timestamp())
     respuesta = Column(Text)
     fecha_respuesta = Column(DateTime)
+    # JSON array de rutas relativas: ["{empresa}/{uuid}.jpg", ...]
+    fotos = Column(Text)
 
     # Relación ORM para navegación bidireccional sin JOINs manuales
     empresa = relationship("Empresa", back_populates="tickets")

@@ -5,10 +5,7 @@ import { useAuth } from "../../context/AuthContext"
 import LoadingSpinner from "../../components/common/LoadingSpinner"
 import Pagination from "../../components/common/Pagination"
 
-// El ciclo de vida del ticket sigue un orden lógico (Pendiente → Leido → Respondido → Cerrado);
-// esta constante centraliza los estados válidos para que coincidan frontend y backend
 const ESTADOS = ["Pendiente", "Leido", "Respondido", "Cerrado"]
-// Mapeo directo de nivel de importancia a clase CSS; al ser un objeto fuera del componente evitamos recrearlo en cada render
 const IMPORTANCIA_CLASE = { Baja: "prioridad-baja", Media: "prioridad-media", Alta: "prioridad-alta", Critica: "prioridad-critica" }
 
 export default function TicketsAdmin() {
@@ -21,6 +18,7 @@ export default function TicketsAdmin() {
   const [cargando, setCargando] = useState(true)
   const [pagina, setPagina] = useState(1)
   const [totalPaginas, setTotalPaginas] = useState(1)
+  const [lightbox, setLightbox] = useState(null)
 
   const fetchTickets = useCallback(async () => {
     setCargando(true)
@@ -34,11 +32,8 @@ export default function TicketsAdmin() {
     }
   }, [pagina])
 
-  // El efecto depende de fetchTickets (que es estable por useCallback), así que solo se ejecuta al montar el componente
   useEffect(() => { fetchTickets() }, [fetchTickets])
 
-  // Enviamos estado y respuesta en un solo PUT para que el backend haga una transacción atómica;
-  // si el admin escribe una respuesta, el estado pasa automáticamente a "Respondido" en el backend
   async function cambiarEstado(id, estado) {
     try {
       const body = { estado }
@@ -51,8 +46,6 @@ export default function TicketsAdmin() {
     }
   }
 
-  // Al abrir un ticket guardamos el objeto completo en detalle para usarlo como "tienda local" del modal,
-  // y reseteamos la respuesta para que el textarea empiece limpio
   function abrirDetalle(t) {
     setDetalle(t)
     setRespuesta("")
@@ -70,6 +63,10 @@ export default function TicketsAdmin() {
     }
   }
 
+  function fotoUrl(idReporte, filename) {
+    return `${api.defaults.baseURL}/tickets/${idReporte}/fotos/${filename}`
+  }
+
   if (cargando) return <LoadingSpinner mensaje="Cargando tickets..." />
 
   return (
@@ -78,9 +75,16 @@ export default function TicketsAdmin() {
         <h1>Tickets de soporte</h1>
       </div>
 
-      {/* El modal se muestra condicionalmente: si detalle es null no existe en el DOM, evitando problemas de tabulación y accesibilidad */}
+      {lightbox && (
+        <div className="lightbox-overlay" onClick={() => setLightbox(null)}>
+          <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
+            <img src={lightbox.url} alt="Foto ampliada" />
+            <button className="lightbox-cerrar" onClick={() => setLightbox(null)}>x</button>
+          </div>
+        </div>
+      )}
+
       {detalle && (
-        // El overlay oscuro cierra el modal al hacer clic fuera (UX estándar); stopPropagation en el modal evita que el clic interno cierre
         <div className="modal-overlay" onClick={() => setDetalle(null)}>
           <div className="modal modal-lg" onClick={(e) => e.stopPropagation()}>
             <h3>Ticket #{detalle.id_reporte}</h3>
@@ -108,6 +112,23 @@ export default function TicketsAdmin() {
                 <p>{detalle.mensaje}</p>
               </div>
 
+              {detalle.fotos && detalle.fotos.length > 0 && (
+                <div className="ticket-detalle-fotos">
+                  <strong>Fotos adjuntas:</strong>
+                  <div className="ticket-fotos-grid">
+                    {detalle.fotos.map((filename, i) => (
+                      <img
+                        key={i}
+                        src={fotoUrl(detalle.id_reporte, filename)}
+                        alt={`Foto ${i + 1}`}
+                        className="ticket-foto-thumb"
+                        onClick={() => setLightbox({ url: fotoUrl(detalle.id_reporte, filename) })}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {detalle.respuesta && (
                 <div className="ticket-detalle-respuesta">
                   <strong>Respuesta:</strong>
@@ -122,7 +143,6 @@ export default function TicketsAdmin() {
                   onChange={(e) => {
                     const nuevoEstado = e.target.value
                     cambiarEstado(detalle.id_reporte, nuevoEstado)
-                    // Optimistic update: actualizamos el estado local del modal inmediatamente sin esperar la respuesta del servidor
                     setDetalle({ ...detalle, estado: nuevoEstado })
                   }}
                 >
@@ -167,15 +187,15 @@ export default function TicketsAdmin() {
             <th>Asunto</th>
             <th>De</th>
             <th>Importancia</th>
+            <th>Fotos</th>
             <th>Estado</th>
             <th>Fecha</th>
             <th>Acción</th>
           </tr>
         </thead>
         <tbody>
-          {/* colSpan="7" porque la tabla tiene 7 columnas; así el mensaje ocupa todo el ancho en vez de aparecer en una sola celda */}
           {tickets.length === 0 && (
-            <tr><td colSpan="7" className="sin-datos">No hay tickets</td></tr>
+            <tr><td colSpan="8" className="sin-datos">No hay tickets</td></tr>
           )}
           {tickets.map((t) => (
             <tr key={t.id_reporte}>
@@ -183,6 +203,7 @@ export default function TicketsAdmin() {
               <td>{t.asunto || "Sin asunto"}</td>
               <td>{t.nombre_contacto || `Usuario #${t.codigo_usuario || "—"}`}</td>
               <td><span className={`prioridad-badge ${IMPORTANCIA_CLASE[t.nivel_importancia] || ""}`}>{t.nivel_importancia}</span></td>
+              <td>{t.fotos && t.fotos.length > 0 ? `${t.fotos.length} foto(s)` : "—"}</td>
               <td>{t.estado}</td>
               <td>{t.fecha_reporte ? new Date(t.fecha_reporte).toLocaleDateString() : ""}</td>
               <td>
