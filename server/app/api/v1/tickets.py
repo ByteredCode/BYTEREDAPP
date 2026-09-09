@@ -59,23 +59,41 @@ async def listar_empresas_publico(db: AsyncSession = Depends(get_db)):
 @limiter.limit("10/minute")
 async def post_ticket(
     request: Request,
-    data: TicketCreate,
+    correo_contacto: str = Form(...),
+    codigo_empresa: int = Form(...),
+    mensaje: str = Form(...),
+    nombre_contacto: Optional[str] = Form(None),
+    asunto: Optional[str] = Form(None),
+    nivel_importancia: Optional[str] = Form("Media"),
+    fotos: Optional[list[UploadFile]] = File(None),
     db: AsyncSession = Depends(get_db),
     usuario: Optional[Usuario] = Depends(get_usuario_opcional),
 ):
     if not usuario:
         existe_empresa = await db.execute(
-            select(Empresa).where(Empresa.codigo_empresa == data.codigo_empresa).limit(1)
+            select(Empresa).where(Empresa.codigo_empresa == codigo_empresa).limit(1)
         )
         if not existe_empresa.scalar_one_or_none():
             raise HTTPException(status_code=400, detail="Empresa no válida")
 
     codigo_usuario = usuario.codigo_usuario if usuario else None
+    data = TicketCreate(
+        nombre_contacto=nombre_contacto,
+        correo_contacto=correo_contacto,
+        asunto=asunto,
+        nivel_importancia=nivel_importancia,
+        mensaje=mensaje,
+        codigo_empresa=codigo_empresa,
+    )
     ticket = await crear_ticket(db, data, codigo_usuario)
+
+    fotos_validas = [f for f in (fotos or []) if f.filename]
+    if fotos_validas:
+        await guardar_fotos(ticket, fotos_validas, codigo_empresa, db)
 
     if config.TICKETS_EMAIL:
         resultado_empresa = await db.execute(
-            select(Empresa.nombre).where(Empresa.codigo_empresa == data.codigo_empresa)
+            select(Empresa.nombre).where(Empresa.codigo_empresa == codigo_empresa)
         )
         nombre_empresa = resultado_empresa.scalar_one_or_none() or "Desconocida"
         asunto_email = f"Nuevo ticket: {ticket.asunto or 'Sin asunto'} ({ticket.nivel_importancia})"
@@ -90,23 +108,6 @@ async def post_ticket(
         adjuntos = obtener_fotos_adjuntos(ticket) if ticket.fotos else None
         await enviar_correo(config.TICKETS_EMAIL, asunto_email, cuerpo, adjuntos)
 
-    return ticket
-
-
-@router.post("/{id_reporte}/fotos", response_model=TicketResponse, status_code=200)
-async def subir_fotos_ticket(
-    id_reporte: int,
-    fotos: list[UploadFile] = File(...),
-    db: AsyncSession = Depends(get_db),
-    codigo_empresa: int = Depends(get_tenant_filter),
-    usuario: Usuario = Depends(get_usuario_actual),
-    _servicio: None = Depends(require_servicio("tickets")),
-):
-    ticket = await obtener_ticket(db, id_reporte, codigo_empresa)
-    if ticket.codigo_usuario != usuario.codigo_usuario and usuario.rol != "admin_total":
-        from fastapi import HTTPException, status
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No tienes permiso para subir fotos a este ticket")
-    await guardar_fotos(ticket, fotos, codigo_empresa, db)
     return ticket
 
 
@@ -141,14 +142,13 @@ async def descargar_foto_ticket(
 ):
     ticket = await obtener_ticket(db, id_reporte, codigo_empresa)
     if not ticket.fotos:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Ticket sin fotos")
 
-    import json, os
+    import json
+    import os
     try:
         rutas = json.loads(ticket.fotos)
     except (json.JSONDecodeError, TypeError):
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Fotos no válidas")
 
     for ruta in rutas:
@@ -164,7 +164,6 @@ async def descargar_foto_ticket(
             }.get(ext, "application/octet-stream")
             return Response(content=contenido, media_type=content_type)
 
-    from fastapi import HTTPException
     raise HTTPException(status_code=404, detail="Foto no encontrada")
 
 
@@ -188,6 +187,5 @@ async def delete_ticket(
     _servicio: None = Depends(require_servicio("tickets")),
 ):
     if usuario.rol != "admin_total":
-        from fastapi import HTTPException, status
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Solo admin_total puede eliminar tickets")
     await eliminar_ticket(db, id_reporte, codigo_empresa)

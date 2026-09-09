@@ -52,25 +52,19 @@ export default function NuevoTicket() {
     setError("")
     setCargando(true)
     try {
-      const payload = { ...form }
-      if (!payload.nombre_contacto) payload.nombre_contacto = null
-      if (!payload.asunto) payload.asunto = null
+      const fd = new FormData()
+      fd.append("correo_contacto", form.correo_contacto)
+      fd.append("mensaje", form.mensaje)
+      fd.append("nivel_importancia", "Media")
+      if (form.nombre_contacto) fd.append("nombre_contacto", form.nombre_contacto)
+      if (form.asunto) fd.append("asunto", form.asunto)
       if (usuario) {
-        payload.codigo_empresa = usuario.codigo_empresa
+        fd.append("codigo_empresa", usuario.codigo_empresa)
       } else {
-        payload.codigo_empresa = Number(payload.codigo_empresa)
+        fd.append("codigo_empresa", Number(form.codigo_empresa))
       }
-      payload.nivel_importancia = "Media"
-      const res = await api.post("/tickets", payload)
-      const ticketId = res.data.id_reporte
-
-      if (fotos.length > 0 && usuario) {
-        const fd = new FormData()
-        fotos.forEach((f) => fd.append("fotos", f))
-        await api.post(`/tickets/${ticketId}/fotos`, fd, {
-          headers: { "Content-Type": "multipart/form-data" },
-        })
-      }
+      fotos.forEach((f) => fd.append("fotos", f))
+      await api.post("/tickets", fd)
       setEnviado(true)
     } catch (err) {
       setError(err.response?.data?.detail || "Error al enviar ticket")

@@ -6,36 +6,34 @@ from httpx import AsyncClient
 class TestTickets:
 
     async def test_crear_ticket_anonimo(self, client: AsyncClient, test_empresa):
-        # Cualquier persona (sin autenticación) puede crear un ticket de soporte
-        payload = {
+        data = {
             "nombre_contacto": "Anonimo",
             "correo_contacto": "anonimo@test.com",
             "asunto": "Problema anonimo",
             "nivel_importancia": "Alta",
             "mensaje": "Esto es un problema grave",
-            "codigo_empresa": test_empresa.codigo_empresa,
+            "codigo_empresa": str(test_empresa.codigo_empresa),
         }
-        response = await client.post("/tickets", json=payload)
+        response = await client.post("/tickets", data=data)
         assert response.status_code == 201
-        data = response.json()
-        assert data["mensaje"] == "Esto es un problema grave"
-        assert data["codigo_usuario"] is None
-        assert data["codigo_empresa"] == test_empresa.codigo_empresa
-        assert data["estado"] == "Pendiente"
+        body = response.json()
+        assert body["mensaje"] == "Esto es un problema grave"
+        assert body["codigo_usuario"] is None
+        assert body["codigo_empresa"] == test_empresa.codigo_empresa
+        assert body["estado"] == "Pendiente"
 
     async def test_crear_ticket_autenticado(self, client: AsyncClient, headers_usuario, test_empresa):
-        # Un usuario autenticado también puede crear tickets; el backend asocia su user_id al ticket
-        payload = {
+        data = {
             "correo_contacto": "usuario@test.com",
             "asunto": "Ticket autenticado",
             "mensaje": "Soy usuario registrado",
-            "codigo_empresa": test_empresa.codigo_empresa,
+            "codigo_empresa": str(test_empresa.codigo_empresa),
         }
-        response = await client.post("/tickets", json=payload, headers=headers_usuario)
+        response = await client.post("/tickets", data=data, headers=headers_usuario)
         assert response.status_code == 201
-        data = response.json()
-        assert data["asunto"] == "Ticket autenticado"
-        assert data["codigo_usuario"] is not None
+        body = response.json()
+        assert body["asunto"] == "Ticket autenticado"
+        assert body["codigo_usuario"] is not None
 
     async def test_listar_tickets(self, client: AsyncClient, headers_usuario, test_ticket):
         # El listado de tickets debe devolver los tickets de la empresa del usuario autenticado
@@ -92,12 +90,12 @@ class TestTickets:
         assert response.status_code == 404
 
     async def test_crear_ticket_sin_mensaje(self, client: AsyncClient, test_empresa):
-        # El schema de Pydantic debe rechazar tickets sin mensaje (campo requerido)
-        payload = {
+        # El endpoint debe rechazar tickets sin mensaje (campo requerido)
+        data = {
             "correo_contacto": "test@test.com",
-            "codigo_empresa": test_empresa.codigo_empresa,
+            "codigo_empresa": str(test_empresa.codigo_empresa),
         }
-        response = await client.post("/tickets", json=payload)
+        response = await client.post("/tickets", data=data)
         assert response.status_code == 422
 
 
