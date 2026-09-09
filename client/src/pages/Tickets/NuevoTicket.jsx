@@ -15,7 +15,6 @@ export default function NuevoTicket() {
     codigo_empresa: "",
   })
   const [fotos, setFotos] = useState([])
-  const [previews, setPreviews] = useState([])
   const [empresas, setEmpresas] = useState([])
   const [enviado, setEnviado] = useState(false)
   const [error, setError] = useState("")
@@ -32,20 +31,16 @@ export default function NuevoTicket() {
     }
   }, [esAnonimo])
 
-  useEffect(() => {
-    const urls = fotos.map((f) => URL.createObjectURL(f))
-    return () => urls.forEach((u) => URL.revokeObjectURL(u))
-  }, [fotos])
-
   function seleccionarFotos(e) {
     const archivos = Array.from(e.target.files || [])
     const nuevos = [...fotos, ...archivos].slice(0, MAX_FOTOS)
     const validos = nuevos.filter((f) => TIPOS_PERMITIDOS.includes(f.type))
     if (validos.length < nuevos.length) {
       setError("Solo se permiten fotos JPEG, PNG, GIF o WebP")
+    } else {
+      setError("")
     }
     setFotos(validos)
-    setError("")
   }
 
   function eliminarFoto(idx) {
@@ -57,19 +52,25 @@ export default function NuevoTicket() {
     setError("")
     setCargando(true)
     try {
-      const fd = new FormData()
-      fd.append("correo_contacto", form.correo_contacto)
-      fd.append("mensaje", form.mensaje)
-      if (form.nombre_contacto) fd.append("nombre_contacto", form.nombre_contacto)
-      if (form.asunto) fd.append("asunto", form.asunto)
-      fd.append("nivel_importancia", "Media")
-      const empId = usuario ? usuario.codigo_empresa : Number(form.codigo_empresa)
-      fd.append("codigo_empresa", empId)
-      fotos.forEach((f) => fd.append("fotos", f))
+      const payload = { ...form }
+      if (!payload.nombre_contacto) payload.nombre_contacto = null
+      if (!payload.asunto) payload.asunto = null
+      if (usuario) {
+        payload.codigo_empresa = usuario.codigo_empresa
+      } else {
+        payload.codigo_empresa = Number(payload.codigo_empresa)
+      }
+      payload.nivel_importancia = "Media"
+      const res = await api.post("/tickets", payload)
+      const ticketId = res.data.id_reporte
 
-      await api.post("/tickets", fd, {
-        headers: { "Content-Type": "multipart/form-data" },
-      })
+      if (fotos.length > 0 && usuario) {
+        const fd = new FormData()
+        fotos.forEach((f) => fd.append("fotos", f))
+        await api.post(`/tickets/${ticketId}/fotos`, fd, {
+          headers: { "Content-Type": "multipart/form-data" },
+        })
+      }
       setEnviado(true)
     } catch (err) {
       setError(err.response?.data?.detail || "Error al enviar ticket")
