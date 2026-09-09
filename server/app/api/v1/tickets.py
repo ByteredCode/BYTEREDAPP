@@ -1,8 +1,6 @@
-import json
-import os
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
@@ -61,50 +59,23 @@ async def listar_empresas_publico(db: AsyncSession = Depends(get_db)):
 @limiter.limit("10/minute")
 async def post_ticket(
     request: Request,
-    correo_contacto: str = Form(...),
-    mensaje: str = Form(...),
-    nombre_contacto: Optional[str] = Form(None),
-    asunto: Optional[str] = Form(None),
-    nivel_importancia: str = Form("Media"),
-    codigo_empresa: Optional[int] = Form(None),
-    fotos: Optional[list[UploadFile]] = File(None),
+    data: TicketCreate,
     db: AsyncSession = Depends(get_db),
     usuario: Optional[Usuario] = Depends(get_usuario_opcional),
 ):
     if not usuario:
         existe_empresa = await db.execute(
-            select(Empresa).where(Empresa.codigo_empresa == codigo_empresa).limit(1)
+            select(Empresa).where(Empresa.codigo_empresa == data.codigo_empresa).limit(1)
         )
         if not existe_empresa.scalar_one_or_none():
-            from fastapi import HTTPException
             raise HTTPException(status_code=400, detail="Empresa no válida")
-    else:
-        codigo_empresa = usuario.codigo_empresa
-
-    import re
-    if not re.match(r"^(Baja|Media|Alta|Critica)$", nivel_importancia):
-        from fastapi import HTTPException
-        raise HTTPException(status_code=400, detail="Nivel de importancia no válido")
-
-    data = TicketCreate(
-        correo_contacto=correo_contacto,
-        mensaje=mensaje,
-        nombre_contacto=nombre_contacto,
-        asunto=asunto,
-        nivel_importancia=nivel_importancia,
-        codigo_empresa=codigo_empresa,
-    )
 
     codigo_usuario = usuario.codigo_usuario if usuario else None
     ticket = await crear_ticket(db, data, codigo_usuario)
 
-    fotos_validas = [f for f in (fotos or []) if f.filename]
-    if fotos_validas and usuario:
-        await guardar_fotos(ticket, fotos_validas, codigo_empresa, db)
-
     if config.TICKETS_EMAIL:
         resultado_empresa = await db.execute(
-            select(Empresa.nombre).where(Empresa.codigo_empresa == codigo_empresa)
+            select(Empresa.nombre).where(Empresa.codigo_empresa == data.codigo_empresa)
         )
         nombre_empresa = resultado_empresa.scalar_one_or_none() or "Desconocida"
         asunto_email = f"Nuevo ticket: {ticket.asunto or 'Sin asunto'} ({ticket.nivel_importancia})"
@@ -119,6 +90,23 @@ async def post_ticket(
         adjuntos = obtener_fotos_adjuntos(ticket) if ticket.fotos else None
         await enviar_correo(config.TICKETS_EMAIL, asunto_email, cuerpo, adjuntos)
 
+    return ticket
+
+
+@router.post("/{id_reporte}/fotos", response_model=TicketResponse, status_code=200)
+async def subir_fotos_ticket(
+    id_reporte: int,
+    fotos: list[UploadFile] = File(...),
+    db: AsyncSession = Depends(get_db),
+    codigo_empresa: int = Depends(get_tenant_filter),
+    usuario: Usuario = Depends(get_usuario_actual),
+    _servicio: None = Depends(require_servicio("tickets")),
+):
+    ticket = await obtener_ticket(db, id_reporte, codigo_empresa)
+    if ticket.codigo_usuario != usuario.codigo_usuario and usuario.rol != "admin_total":
+        from fastapi import HTTPException, status
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No tienes permiso para subir fotos a este ticket")
+    await guardar_fotos(ticket, fotos, codigo_empresa, db)
     return ticket
 
 
@@ -156,6 +144,7 @@ async def descargar_foto_ticket(
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Ticket sin fotos")
 
+    import json, os
     try:
         rutas = json.loads(ticket.fotos)
     except (json.JSONDecodeError, TypeError):
