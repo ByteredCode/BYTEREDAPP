@@ -1,6 +1,9 @@
+import json
+import os
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
+from fastapi.responses import Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -18,12 +21,14 @@ from app.services.ticket_service import (
     actualizar_estado_ticket,
     crear_ticket,
     eliminar_ticket,
+    guardar_fotos,
+    leer_foto_bytes,
     listar_tickets,
     obtener_ticket,
+    obtener_fotos_adjuntos,
 )
 
 router = APIRouter(prefix="/tickets", tags=["Tickets"])
-# auto_error=False permite que el endpoint de creación sea accesible sin token
 seguridad_ticket = HTTPBearer(auto_error=False)
 
 
@@ -38,13 +43,11 @@ async def get_usuario_opcional(
     credenciales: Optional[HTTPAuthorizationCredentials] = Depends(seguridad_ticket),
     db: AsyncSession = Depends(get_db),
 ) -> Optional[Usuario]:
-    # Si no hay credenciales, devolvemos None en vez de rechazar la petición
     if credenciales is None:
         return None
     try:
         return await get_usuario_actual(credenciales, db)
     except Exception:
-        # Token inválido no debe bloquear; el usuario anónimo aún puede crear tickets
         return None
 
 
@@ -58,25 +61,50 @@ async def listar_empresas_publico(db: AsyncSession = Depends(get_db)):
 @limiter.limit("10/minute")
 async def post_ticket(
     request: Request,
-    data: TicketCreate,
+    correo_contacto: str = Form(...),
+    mensaje: str = Form(...),
+    nombre_contacto: Optional[str] = Form(None),
+    asunto: Optional[str] = Form(None),
+    nivel_importancia: str = Form("Media"),
+    codigo_empresa: Optional[int] = Form(None),
+    fotos: Optional[list[UploadFile]] = File(None),
     db: AsyncSession = Depends(get_db),
     usuario: Optional[Usuario] = Depends(get_usuario_opcional),
 ):
-    # Para anónimos: validar que la empresa existe y aplicar rate limit más estricto
     if not usuario:
         existe_empresa = await db.execute(
-            select(Empresa).where(Empresa.codigo_empresa == data.codigo_empresa).limit(1)
+            select(Empresa).where(Empresa.codigo_empresa == codigo_empresa).limit(1)
         )
         if not existe_empresa.scalar_one_or_none():
             from fastapi import HTTPException
             raise HTTPException(status_code=400, detail="Empresa no válida")
+    else:
+        codigo_empresa = usuario.codigo_empresa
+
+    import re
+    if not re.match(r"^(Baja|Media|Alta|Critica)$", nivel_importancia):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="Nivel de importancia no válido")
+
+    data = TicketCreate(
+        correo_contacto=correo_contacto,
+        mensaje=mensaje,
+        nombre_contacto=nombre_contacto,
+        asunto=asunto,
+        nivel_importancia=nivel_importancia,
+        codigo_empresa=codigo_empresa,
+    )
 
     codigo_usuario = usuario.codigo_usuario if usuario else None
     ticket = await crear_ticket(db, data, codigo_usuario)
 
+    fotos_validas = [f for f in (fotos or []) if f.filename]
+    if fotos_validas and usuario:
+        await guardar_fotos(ticket, fotos_validas, codigo_empresa, db)
+
     if config.TICKETS_EMAIL:
         resultado_empresa = await db.execute(
-            select(Empresa.nombre).where(Empresa.codigo_empresa == data.codigo_empresa)
+            select(Empresa.nombre).where(Empresa.codigo_empresa == codigo_empresa)
         )
         nombre_empresa = resultado_empresa.scalar_one_or_none() or "Desconocida"
         asunto_email = f"Nuevo ticket: {ticket.asunto or 'Sin asunto'} ({ticket.nivel_importancia})"
@@ -88,7 +116,8 @@ async def post_ticket(
             f"Importancia: {ticket.nivel_importancia}\n\n"
             f"Mensaje:\n{ticket.mensaje}"
         )
-        await enviar_correo(config.TICKETS_EMAIL, asunto_email, cuerpo)
+        adjuntos = obtener_fotos_adjuntos(ticket) if ticket.fotos else None
+        await enviar_correo(config.TICKETS_EMAIL, asunto_email, cuerpo, adjuntos)
 
     return ticket
 
@@ -114,6 +143,42 @@ async def get_ticket(
     return await obtener_ticket(db, id_reporte, codigo_empresa)
 
 
+@router.get("/{id_reporte}/fotos/{filename}")
+async def descargar_foto_ticket(
+    id_reporte: int,
+    filename: str,
+    db: AsyncSession = Depends(get_db),
+    codigo_empresa: int = Depends(get_tenant_filter),
+    _servicio: None = Depends(require_servicio("tickets")),
+):
+    ticket = await obtener_ticket(db, id_reporte, codigo_empresa)
+    if not ticket.fotos:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Ticket sin fotos")
+
+    try:
+        rutas = json.loads(ticket.fotos)
+    except (json.JSONDecodeError, TypeError):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Fotos no válidas")
+
+    for ruta in rutas:
+        if os.path.basename(ruta) == filename:
+            contenido = leer_foto_bytes(ruta)
+            ext = os.path.splitext(filename)[1].lower()
+            content_type = {
+                ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
+                ".png": "image/png",
+                ".gif": "image/gif",
+                ".webp": "image/webp",
+            }.get(ext, "application/octet-stream")
+            return Response(content=contenido, media_type=content_type)
+
+    from fastapi import HTTPException
+    raise HTTPException(status_code=404, detail="Foto no encontrada")
+
+
 @router.put("/{id_reporte}/estado", response_model=TicketResponse)
 async def put_estado_ticket(
     id_reporte: int,
@@ -122,8 +187,6 @@ async def put_estado_ticket(
     codigo_empresa: int = Depends(get_tenant_filter),
     _servicio: None = Depends(require_servicio("tickets")),
 ):
-    # Se permite incluir una respuesta (texto) al cambiar el estado para que
-    # el admin pueda comunicarse con el reportante sin usar otro canal
     return await actualizar_estado_ticket(db, id_reporte, data.estado, codigo_empresa, data.respuesta)
 
 

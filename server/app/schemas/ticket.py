@@ -1,7 +1,8 @@
+import json
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 # ── Schemas del módulo de tickets ─────────────────────────────────────
 # Separamos creación, actualización de estado y respuesta para evitar
@@ -41,5 +42,16 @@ class TicketResponse(BaseModel):
     fecha_reporte: Optional[datetime] = None
     respuesta: Optional[str] = None
     fecha_respuesta: Optional[datetime] = None
+    fotos: Optional[list[str]] = None
+
+    @field_validator("fotos", mode="before")
+    @classmethod
+    def parse_fotos(cls, v):
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except (json.JSONDecodeError, TypeError):
+                return None
+        return v
 
     model_config = {"from_attributes": True}

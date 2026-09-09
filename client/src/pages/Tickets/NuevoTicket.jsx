@@ -1,6 +1,9 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import api from "../../api/axios"
 import { useAuth } from "../../context/AuthContext"
+
+const MAX_FOTOS = 3
+const TIPOS_PERMITIDOS = ["image/jpeg", "image/png", "image/gif", "image/webp"]
 
 export default function NuevoTicket() {
   const { usuario } = useAuth()
@@ -11,10 +14,13 @@ export default function NuevoTicket() {
     mensaje: "",
     codigo_empresa: "",
   })
+  const [fotos, setFotos] = useState([])
+  const [previews, setPreviews] = useState([])
   const [empresas, setEmpresas] = useState([])
   const [enviado, setEnviado] = useState(false)
   const [error, setError] = useState("")
   const [cargando, setCargando] = useState(false)
+  const inputFotosRef = useRef()
 
   const esAnonimo = !usuario
 
@@ -26,20 +32,44 @@ export default function NuevoTicket() {
     }
   }, [esAnonimo])
 
+  useEffect(() => {
+    const urls = fotos.map((f) => URL.createObjectURL(f))
+    return () => urls.forEach((u) => URL.revokeObjectURL(u))
+  }, [fotos])
+
+  function seleccionarFotos(e) {
+    const archivos = Array.from(e.target.files || [])
+    const nuevos = [...fotos, ...archivos].slice(0, MAX_FOTOS)
+    const validos = nuevos.filter((f) => TIPOS_PERMITIDOS.includes(f.type))
+    if (validos.length < nuevos.length) {
+      setError("Solo se permiten fotos JPEG, PNG, GIF o WebP")
+    }
+    setFotos(validos)
+    setError("")
+  }
+
+  function eliminarFoto(idx) {
+    setFotos((prev) => prev.filter((_, i) => i !== idx))
+  }
+
   async function enviar(e) {
     e.preventDefault()
     setError("")
     setCargando(true)
     try {
-      const payload = { ...form }
-      if (!payload.nombre_contacto) payload.nombre_contacto = null
-      if (!payload.asunto) payload.asunto = null
-      if (usuario) {
-        payload.codigo_empresa = usuario.codigo_empresa
-      } else {
-        payload.codigo_empresa = Number(payload.codigo_empresa)
-      }
-      await api.post("/tickets", payload)
+      const fd = new FormData()
+      fd.append("correo_contacto", form.correo_contacto)
+      fd.append("mensaje", form.mensaje)
+      if (form.nombre_contacto) fd.append("nombre_contacto", form.nombre_contacto)
+      if (form.asunto) fd.append("asunto", form.asunto)
+      fd.append("nivel_importancia", "Media")
+      const empId = usuario ? usuario.codigo_empresa : Number(form.codigo_empresa)
+      fd.append("codigo_empresa", empId)
+      fotos.forEach((f) => fd.append("fotos", f))
+
+      await api.post("/tickets", fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
       setEnviado(true)
     } catch (err) {
       setError(err.response?.data?.detail || "Error al enviar ticket")
@@ -53,7 +83,11 @@ export default function NuevoTicket() {
       <div className="ticket-exito">
         <h2>Ticket enviado</h2>
         <p>Hemos recibido tu mensaje. Te responderemos pronto.</p>
-        <button className="btn-primary" onClick={() => { setEnviado(false); setForm({ nombre_contacto: "", correo_contacto: "", asunto: "", mensaje: "", codigo_empresa: "" }) }}>
+        <button className="btn-primary" onClick={() => {
+          setEnviado(false)
+          setFotos([])
+          setForm({ nombre_contacto: "", correo_contacto: "", asunto: "", mensaje: "", codigo_empresa: "" })
+        }}>
           Enviar otro
         </button>
       </div>
@@ -99,6 +133,41 @@ export default function NuevoTicket() {
           <label>Mensaje</label>
           <textarea rows="5" value={form.mensaje} onChange={(e) => setForm({ ...form, mensaje: e.target.value })} required />
         </div>
+
+        {usuario && (
+          <div className="campo">
+            <label>Fotos (opcional, max {MAX_FOTOS})</label>
+            <input
+              ref={inputFotosRef}
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              multiple
+              onChange={seleccionarFotos}
+              style={{ display: "none" }}
+            />
+            <button
+              type="button"
+              className="btn-secundario btn-sm"
+              onClick={() => inputFotosRef.current?.click()}
+              disabled={fotos.length >= MAX_FOTOS}
+            >
+              {fotos.length >= MAX_FOTOS ? "Maximo alcanzado" : "Adjuntar fotos"}
+            </button>
+            {fotos.length > 0 && (
+              <div className="ticket-fotos-preview">
+                {fotos.map((f, i) => (
+                  <div key={i} className="ticket-foto-mini">
+                    <img src={URL.createObjectURL(f)} alt={`Foto ${i + 1}`} />
+                    <button type="button" className="ticket-foto-eliminar" onClick={() => eliminarFoto(i)}>
+                      x
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         <button className="btn-primary" type="submit" disabled={cargando}>
           {cargando ? "Enviando..." : "Enviar ticket"}
         </button>
