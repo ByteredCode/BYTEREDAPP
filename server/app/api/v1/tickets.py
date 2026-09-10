@@ -87,9 +87,18 @@ async def post_ticket(
     )
     ticket = await crear_ticket(db, data, codigo_usuario)
 
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Fotos recibidas: {len(fotos) if fotos else 0}")
+    if fotos:
+        for f in fotos:
+            logger.info(f"  - {f.filename} ({f.content_type}, {getattr(f, 'size', '?')} bytes)")
+
     fotos_validas = [f for f in (fotos or []) if f.filename]
+    logger.info(f"Fotos validas: {len(fotos_validas)}")
     if fotos_validas:
         await guardar_fotos(ticket, fotos_validas, codigo_empresa, db)
+        logger.info(f"Fotos guardadas. ticket.fotos = {ticket.fotos}")
 
     if config.TICKETS_EMAIL:
         resultado_empresa = await db.execute(
