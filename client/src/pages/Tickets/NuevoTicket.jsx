@@ -64,7 +64,9 @@ export default function NuevoTicket() {
         fd.append("codigo_empresa", Number(form.codigo_empresa))
       }
       fotos.forEach((f) => fd.append("fotos", f))
-      await api.post("/tickets", fd)
+      await api.post("/tickets", fd, {
+        headers: { "Content-Type": undefined },
+      })
       setEnviado(true)
     } catch (err) {
       setError(err.response?.data?.detail || "Error al enviar ticket")
